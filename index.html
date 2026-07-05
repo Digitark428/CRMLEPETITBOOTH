@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Petit Booth — Espace de gestion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08040f; --bg2:#120a20; --bg3:#1a0e30;
+  --panel:rgba(28,16,48,0.55); --panel2:rgba(40,22,68,0.45);
+  --panel-solid:#170d28; --border:rgba(177,92,255,0.16); --border2:rgba(177,92,255,0.30);
+  --text:#f3ecff; --muted:#b6a6d4; --muted2:#8576a3;
+  --pink:#ff5e8c; --magenta:#e63a8c; --coral:#ff7a5c; --violet:#b15cff; --purple:#8a4dff;
+  --gold:#f3e2bd;
+  --grad:linear-gradient(135deg,#ff7eb3 0%,#c77dff 55%,#8a6bff 100%);
+  --grad-text:linear-gradient(90deg,#ff8fb1,#c77dff 60%,#9d6bff);
+  --grad-gold:linear-gradient(90deg,#f3e2bd,#e7a4cf,#c77dff);
+  --c-demande:#b15cff; --c-devis:#f5c542; --c-attente:#4d9dff; --c-acompte:#2dd4bf; --c-confirme:#3ecf8e; --c-termine:#8d8aa6;
+  --shadow:0 18px 50px -20px rgba(138,77,255,0.5);
+  --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Manrope',-apple-system,sans-serif;
+  color:var(--text); background:var(--bg);
+  -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+/* cosmic backdrop */
+.cosmos{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(1200px 800px at 50% 12%, rgba(138,77,255,0.18), transparent 60%),
+  radial-gradient(900px 700px at 85% 80%, rgba(230,58,140,0.14), transparent 55%),
+  radial-gradient(700px 600px at 12% 70%, rgba(77,157,255,0.10), transparent 55%),
+  linear-gradient(160deg,#08040f, #0d0718 55%, #08040f);}
+.cosmos:after{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(1px 1px at 20% 30%,rgba(255,255,255,.5),transparent),
+  radial-gradient(1px 1px at 70% 60%,rgba(255,255,255,.35),transparent),
+  radial-gradient(1px 1px at 40% 80%,rgba(255,255,255,.4),transparent),
+  radial-gradient(1px 1px at 85% 25%,rgba(255,255,255,.3),transparent),
+  radial-gradient(1.5px 1.5px at 55% 15%,rgba(255,255,255,.45),transparent);
+  background-size:cover;opacity:.6}
+.vortex{position:fixed;z-index:-1;width:1100px;height:1100px;left:50%;top:42%;transform:translate(-50%,-50%);
+  border-radius:50%;pointer-events:none;opacity:.5;
+  background:conic-gradient(from 0deg, transparent, rgba(177,92,255,.10), transparent, rgba(230,58,140,.08), transparent);
+  -webkit-mask:radial-gradient(circle, transparent 26%, #000 30%, #000 60%, transparent 66%);
+  mask:radial-gradient(circle, transparent 26%, #000 30%, #000 60%, transparent 66%);
+  animation:spin 80s linear infinite}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+.gtext{background:var(--grad-text);-webkit-background-clip:text;background-clip:text;color:transparent}
+.gold{background:var(--grad-gold);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ---------- BUTTONS ---------- */
+.btn{font-family:inherit;font-weight:600;border:none;cursor:pointer;border-radius:12px;padding:11px 18px;font-size:14px;
+  color:#fff;background:var(--grad);transition:.18s;letter-spacing:.2px;display:inline-flex;align-items:center;gap:8px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 10px 26px -8px rgba(199,125,255,.7)}
+.btn.neon{background:transparent;border:1.5px solid transparent;color:#fff;position:relative;
+  background:linear-gradient(var(--bg2),var(--bg2)) padding-box,var(--grad) border-box;
+  box-shadow:0 0 18px -4px rgba(199,125,255,.55), inset 0 0 14px -8px rgba(255,126,179,.6)}
+.btn.neon:hover{box-shadow:0 0 28px -2px rgba(199,125,255,.85)}
+.btn.ghost{background:transparent;border:1px solid var(--border2);color:var(--muted)}
+.btn.ghost:hover{color:#fff;box-shadow:none;background:var(--panel2)}
+.btn.sm{padding:7px 13px;font-size:12.5px;border-radius:10px}
+.btn.danger{background:linear-gradient(135deg,#ff6b6b,#c2185b)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+
+input,select,textarea{font-family:inherit;width:100%;background:rgba(12,7,22,.6);border:1px solid var(--border);
+  color:var(--text);border-radius:11px;padding:11px 13px;font-size:14px;transition:.15s;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--violet);box-shadow:0 0 0 3px rgba(177,92,255,.15)}
+label{font-size:12.5px;color:var(--muted);font-weight:600;display:block;margin:0 0 6px 2px}
+.field{margin-bottom:14px}
+select option{background:#170d28}
+::placeholder{color:var(--muted2)}
+
+.card{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+/* ---------- LOGIN ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{width:100%;max-width:420px;padding:38px 34px;text-align:center;animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+.logo-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:8px}
+.brand-name{font-family:'Sora';font-weight:800;font-size:21px;letter-spacing:1px}
+.brand-name .b{color:var(--coral)}
+.brand-name .p{color:var(--violet)}
+.brand-tag{font-size:9.5px;letter-spacing:4px;color:var(--muted2);font-weight:600}
+.login-tabs{display:flex;gap:8px;margin:26px 0 22px;background:rgba(12,7,22,.5);padding:5px;border-radius:13px}
+.login-tabs button{flex:1;background:transparent;border:none;color:var(--muted);font-family:inherit;font-weight:600;
+  padding:10px;border-radius:9px;cursor:pointer;font-size:13.5px;transition:.18s}
+.login-tabs button.active{background:var(--grad);color:#fff;box-shadow:0 6px 18px -6px rgba(199,125,255,.6)}
+.hint{font-size:11.5px;color:var(--muted2);margin-top:14px;line-height:1.5}
+.hint code{color:var(--violet);background:rgba(177,92,255,.12);padding:1px 6px;border-radius:5px}
+.err{color:#ff8585;font-size:12.5px;margin-top:6px;min-height:16px;text-align:left}
+
+/* ---------- APP SHELL ---------- */
+#app{display:none;min-height:100vh}
+.shell{display:flex;min-height:100vh}
+.sidebar{width:246px;flex-shrink:0;padding:22px 16px;border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;display:flex;flex-direction:column;background:rgba(10,5,18,.55);backdrop-filter:blur(12px)}
+.side-logo{display:flex;align-items:center;gap:11px;padding:4px 8px 22px}
+.side-logo .brand-name{font-size:15px;letter-spacing:.5px}
+.nav{display:flex;flex-direction:column;gap:3px;flex:1}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:11px;color:var(--muted);
+  text-decoration:none;font-weight:600;font-size:14px;cursor:pointer;transition:.15s;position:relative}
+.nav a svg{width:19px;height:19px;flex-shrink:0;opacity:.85}
+.nav a:hover{background:var(--panel2);color:#fff}
+.nav a.active{color:#fff;background:linear-gradient(90deg,rgba(177,92,255,.22),rgba(230,58,140,.10))}
+.nav a.active:before{content:"";position:absolute;left:0;top:18%;height:64%;width:3px;border-radius:3px;background:var(--grad)}
+.side-foot{border-top:1px solid var(--border);padding-top:14px;font-size:12px;color:var(--muted2)}
+.side-foot .who{color:var(--text);font-weight:600;font-size:13px;margin-bottom:2px}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 30px;gap:16px;
+  position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);background:rgba(8,4,15,.6);border-bottom:1px solid var(--border)}
+.topbar h1{font-family:'Sora';font-size:20px;font-weight:700;letter-spacing:.3px}
+.topbar .sub{font-size:12.5px;color:var(--muted2);margin-top:1px}
+.content{padding:26px 30px 60px;max-width:1400px;width:100%}
+.burger{display:none;background:transparent;border:1px solid var(--border2);border-radius:10px;color:#fff;padding:8px 10px;cursor:pointer}
+
+/* dashboard */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:24px}
+.stat{padding:20px;position:relative;overflow:hidden}
+.stat .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:14px;
+  background:linear-gradient(135deg,rgba(255,126,179,.18),rgba(138,107,255,.18));border:1px solid var(--border)}
+.stat .ic svg{width:20px;height:20px;color:var(--violet)}
+.stat .val{font-family:'Sora';font-size:30px;font-weight:800;line-height:1}
+.stat .lbl{font-size:12.5px;color:var(--muted);margin-top:7px;font-weight:500}
+.stat .val.small{font-size:18px}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+.sec-title{font-family:'Sora';font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:9px}
+.sec-title .pill{font-size:11px;font-weight:600;background:var(--panel2);border:1px solid var(--border);padding:2px 9px;border-radius:20px;color:var(--muted)}
+
+.evrow{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--border)}
+.evrow:last-child{border-bottom:none}
+.evrow .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 10px currentColor}
+.evrow .nm{font-weight:600;font-size:14px}
+.evrow .me{font-size:12px;color:var(--muted2);margin-top:2px}
+.evrow .rt{margin-left:auto;text-align:right}
+.evrow .rt .d{font-weight:700;font-size:13.5px}
+.evrow .rt .h{font-size:11.5px;color:var(--muted2)}
+.empty{text-align:center;color:var(--muted2);padding:34px 10px;font-size:13.5px}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:20px;
+  border:1px solid;white-space:nowrap}
+.badge .d{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+/* ---------- PIPELINE ---------- */
+.pipe-wrap{overflow-x:auto;padding-bottom:14px}
+.pipe{display:flex;gap:14px;min-width:max-content}
+.col{width:268px;flex-shrink:0;background:var(--panel);border:1px solid var(--border);border-radius:16px;
+  display:flex;flex-direction:column;max-height:calc(100vh - 200px)}
+.col.drop{outline:2px dashed var(--violet);outline-offset:-3px;background:rgba(177,92,255,.08)}
+.col-head{padding:14px 15px 10px;display:flex;align-items:center;gap:9px;font-weight:700;font-size:13.5px;
+  border-bottom:1px solid var(--border)}
+.col-head .cnt{margin-left:auto;font-size:12px;color:var(--muted2);background:rgba(12,7,22,.5);
+  padding:1px 9px;border-radius:20px;font-weight:600}
+.col-body{padding:11px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:60px}
+.kard{background:linear-gradient(160deg,rgba(40,22,68,.7),rgba(24,13,42,.7));border:1px solid var(--border);
+  border-radius:13px;padding:13px;cursor:grab;transition:.15s;border-left:3px solid var(--violet)}
+.kard:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 10px 24px -14px rgba(199,125,255,.6)}
+.kard.dragging{opacity:.4}
+.kard .knm{font-weight:700;font-size:14px}
+.kard .ktype{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+.kard .kfoot{display:flex;align-items:center;justify-content:space-between;margin-top:11px}
+.kard .kdate{font-size:11.5px;color:var(--muted2)}
+.kard .kamt{font-weight:800;font-size:13px;font-family:'Sora'}
+.kard .kmeta{font-size:11px;color:var(--violet);margin-top:5px}
+
+/* ---------- TABLE / LIST ---------- */
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+.toolbar .search{position:relative;flex:1;min-width:200px;max-width:340px}
+.toolbar .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted2)}
+.toolbar .search input{padding-left:37px}
+.seg{display:flex;background:rgba(12,7,22,.5);border:1px solid var(--border);border-radius:11px;padding:4px;gap:3px}
+.seg button{background:transparent;border:none;color:var(--muted);font-family:inherit;font-weight:600;font-size:13px;
+  padding:7px 14px;border-radius:8px;cursor:pointer;transition:.15s}
+.seg button.active{background:var(--grad);color:#fff}
+
+/* ---------- CALENDAR ---------- */
+.cal-top{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.cal-nav{display:flex;align-items:center;gap:6px}
+.icon-btn{background:var(--panel2);border:1px solid var(--border);color:#fff;width:36px;height:36px;border-radius:10px;
+  cursor:pointer;display:grid;place-items:center;transition:.15s}
+.icon-btn:hover{border-color:var(--border2);background:var(--bg3)}
+.cal-title{font-family:'Sora';font-weight:700;font-size:17px;min-width:200px;text-transform:capitalize}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-left:auto}
+.legend span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden}
+.cal-dow{background:var(--panel-solid);padding:9px;text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.cal-cell{background:rgba(16,9,28,.7);min-height:104px;padding:7px;display:flex;flex-direction:column;gap:4px}
+.cal-cell.out{background:rgba(10,5,18,.6);opacity:.5}
+.cal-cell .dn{font-size:12px;color:var(--muted);font-weight:600;align-self:flex-start}
+.cal-cell.today .dn{background:var(--grad);color:#fff;width:23px;height:23px;border-radius:50%;display:grid;place-items:center}
+.cal-ev{font-size:11px;font-weight:600;padding:3px 7px;border-radius:6px;cursor:pointer;color:#08040f;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:.12s}
+.cal-ev:hover{transform:scale(1.02);filter:brightness(1.08)}
+
+.week-grid{display:grid;grid-template-columns:60px repeat(7,1fr);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.week-grid .wh{background:var(--panel-solid);padding:9px 6px;text-align:center;font-size:12px;font-weight:700;border-bottom:1px solid var(--border)}
+.week-grid .wh small{display:block;color:var(--muted2);font-weight:500;font-size:10.5px}
+.week-grid .tcell{border-bottom:1px solid var(--border);border-right:1px solid var(--border);min-height:48px;padding:2px;position:relative}
+.week-grid .tlabel{font-size:11px;color:var(--muted2);text-align:right;padding:4px 7px;border-bottom:1px solid var(--border)}
+.week-ev{font-size:10.5px;font-weight:600;padding:3px 6px;border-radius:6px;color:#08040f;margin-bottom:2px;cursor:pointer;overflow:hidden}
+
+.year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.ymonth{padding:14px}
+.ymonth h4{font-family:'Sora';font-size:13.5px;margin-bottom:10px;text-transform:capitalize}
+.ymini{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.ymini span{font-size:9.5px;text-align:center;padding:3px 0;border-radius:4px;color:var(--muted2);position:relative}
+.ymini span.has{color:#08040f;font-weight:700}
+.ymini span.today-y{outline:1px solid var(--violet)}
+
+/* ---------- MODAL ---------- */
+.overlay{position:fixed;inset:0;background:rgba(4,2,9,.72);backdrop-filter:blur(6px);z-index:100;
+  display:flex;align-items:flex-start;justify-content:center;padding:36px 18px;overflow-y:auto;animation:fade .2s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{width:100%;max-width:760px;background:linear-gradient(160deg,#1b1030,#130a22);border:1px solid var(--border2);
+  border-radius:20px;box-shadow:0 40px 90px -30px #000;animation:rise .35s cubic-bezier(.2,.8,.2,1) both;overflow:hidden}
+.modal-head{padding:22px 26px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px;
+  background:linear-gradient(120deg,rgba(177,92,255,.12),transparent)}
+.modal-head .ti{flex:1}
+.modal-head h2{font-family:'Sora';font-size:20px;font-weight:700}
+.modal-head .meta{font-size:12.5px;color:var(--muted);margin-top:4px}
+.modal-close{background:var(--panel2);border:1px solid var(--border);color:#fff;width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:18px;line-height:1}
+.modal-body{padding:24px 26px;max-height:64vh;overflow-y:auto}
+.modal-foot{padding:16px 26px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+.form-grid .full{grid-column:1/-1}
+.block-title{font-family:'Sora';font-size:13px;font-weight:700;color:var(--violet);text-transform:uppercase;letter-spacing:.6px;
+  margin:18px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.block-title:first-child{margin-top:0}
+.docrow{display:flex;align-items:center;gap:12px;padding:11px 13px;background:rgba(12,7,22,.45);border:1px solid var(--border);
+  border-radius:11px;margin-bottom:9px}
+.docrow .di{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:rgba(177,92,255,.14);color:var(--violet)}
+.docrow .dn{font-weight:600;font-size:13px}
+.docrow .ds{font-size:11px;color:var(--muted2)}
+.docrow .da{margin-left:auto;display:flex;gap:8px}
+.linklike{color:var(--violet);font-size:12.5px;font-weight:600;cursor:pointer;background:none;border:none;font-family:inherit}
+.linklike:hover{text-decoration:underline}
+
+/* prestataires */
+.prest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.prest{padding:20px}
+.prest .ph{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.avatar{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-family:'Sora';font-weight:800;font-size:18px;
+  color:#fff;background:var(--grad);box-shadow:0 8px 20px -8px rgba(199,125,255,.7)}
+.prest .pn{font-family:'Sora';font-weight:700;font-size:16px}
+.prest .pr{font-size:12px;color:var(--muted2)}
+.prest .pstats{display:flex;gap:10px;margin-bottom:14px}
+.prest .pstat{flex:1;text-align:center;background:rgba(12,7,22,.4);border:1px solid var(--border);border-radius:11px;padding:11px 6px}
+.prest .pstat b{font-family:'Sora';font-size:19px;display:block}
+.prest .pstat span{font-size:10.5px;color:var(--muted2)}
+.mini-ev{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.mini-ev:last-child{border:none}
+.mini-ev .md{color:var(--muted2);font-size:11px;margin-left:auto;text-align:right}
+
+/* emails */
+.mailcard{padding:16px 18px;margin-bottom:12px;display:flex;align-items:center;gap:16px}
+.mailcard .when{width:140px;flex-shrink:0}
+.mailcard .when b{font-family:'Sora';font-size:14px;display:block}
+.mailcard .when span{font-size:11px;color:var(--muted2)}
+.tmpl{padding:18px;margin-bottom:14px}
+.tmpl h4{font-family:'Sora';font-size:14px;margin-bottom:4px}
+.tmpl .tg{font-size:11.5px;color:var(--muted2);margin-bottom:12px}
+.tmpl textarea{min-height:78px;resize:vertical}
+
+/* client portal */
+.portal{max-width:760px;margin:0 auto}
+.hero-card{padding:34px;text-align:center;margin-bottom:22px;position:relative;overflow:hidden}
+.hero-card .eyebrow{font-size:12px;letter-spacing:3px;color:var(--muted2);font-weight:600;text-transform:uppercase}
+.hero-card h2{font-family:'Sora';font-size:30px;font-weight:800;margin:8px 0 4px}
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
+.info-tile{padding:18px}
+.info-tile .il{font-size:11.5px;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:flex;align-items:center;gap:7px}
+.info-tile .il svg{width:15px;height:15px;color:var(--violet)}
+.info-tile .iv{font-family:'Sora';font-size:18px;font-weight:700;margin-top:8px}
+
+/* toast */
+#toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(120px);z-index:200;
+  background:linear-gradient(135deg,#241338,#1a0e2c);border:1px solid var(--border2);color:#fff;padding:13px 20px;border-radius:13px;
+  font-weight:600;font-size:13.5px;box-shadow:0 18px 40px -12px #000;transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;align-items:center;gap:10px}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast .tk{color:var(--c-confirme)}
+
+.row-actions{display:flex;gap:8px}
+.fab{display:none}
+
+/* responsive */
+@media(max-width:1080px){.grid2{grid-template-columns:1fr}.year-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:860px){
+  .sidebar{position:fixed;z-index:60;left:0;top:0;transform:translateX(-110%);transition:.28s;box-shadow:0 0 60px #000}
+  .sidebar.open{transform:none}
+  .burger{display:block}
+  .content{padding:18px 16px 80px}
+  .topbar{padding:14px 16px}
+  .form-grid{grid-template-columns:1fr}
+  .year-grid{grid-template-columns:repeat(2,1fr)}
+  .scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
+  .scrim.open{display:block}
+}
+@media(max-width:560px){
+  .cal-cell{min-height:62px;padding:4px}.cal-ev{font-size:8.5px;padding:1px 4px}
+  .legend{width:100%}
+  .week-grid{font-size:11px}
+  .modal-body{padding:18px}
+}
+.scrim{display:none}
+</style>
+</head>
+<body>
+<div class="cosmos"></div>
+<div class="vortex"></div>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="login-card card">
+    <div class="logo-wrap">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff7eb3"/><stop offset="1" stop-color="#8a6bff"/></linearGradient></defs>
+        <rect x="8" y="20" width="48" height="32" rx="7" stroke="url(#lg)" stroke-width="3"/>
+        <path d="M22 20l4-7h12l4 7" stroke="url(#lg)" stroke-width="3" stroke-linejoin="round"/>
+        <circle cx="32" cy="36" r="9" stroke="url(#lg)" stroke-width="3"/>
+        <circle cx="32" cy="36" r="3.4" fill="url(#lg)"/>
+        <circle cx="48" cy="27" r="2" fill="#ff7eb3"/>
+      </svg>
+      <div>
+        <div class="brand-name"><span class="p">LE PETIT</span> <span class="b">BOOTH</span></div>
+        <div class="brand-tag">VOTRE VIDEOBOOTH 360</div>
+      </div>
+    </div>
+    <div class="login-tabs">
+      <button id="tab-admin" class="active" onclick="App.loginTab('admin')">Espace Admin</button>
+      <button id="tab-client" onclick="App.loginTab('client')">Espace Client</button>
+    </div>
+    <div id="login-admin">
+      <div class="field" style="text-align:left"><label>Mot de passe administrateur</label>
+        <input id="admin-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')App.doAdminLogin()"></div>
+      <button class="btn" style="width:100%;justify-content:center" onclick="App.doAdminLogin()">Accéder au tableau de bord</button>
+      <div class="err" id="admin-err"></div>
+      <div class="hint">Démo — mot de passe : <code>admin</code></div>
+    </div>
+    <div id="login-client" style="display:none">
+      <div class="field" style="text-align:left"><label>Votre adresse email</label>
+        <input id="client-email" type="email" placeholder="vous@email.com" onkeydown="if(event.key==='Enter')App.doClientLogin()"></div>
+      <button class="btn neon" style="width:100%;justify-content:center" onclick="App.doClientLogin()">Voir ma prestation</button>
+      <div class="err" id="client-err"></div>
+      <div class="hint">Démo — essayez : <code id="demo-email">…</code></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="scrim" id="scrim" onclick="App.toggleNav(false)"></div>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-logo">
+        <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
+          <rect x="8" y="20" width="48" height="32" rx="7" stroke="url(#lg)" stroke-width="3"/>
+          <path d="M22 20l4-7h12l4 7" stroke="url(#lg)" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="32" cy="36" r="9" stroke="url(#lg)" stroke-width="3"/>
+          <circle cx="32" cy="36" r="3.4" fill="url(#lg)"/>
+        </svg>
+        <div><div class="brand-name"><span class="p">LE PETIT</span> <span class="b">BOOTH</span></div>
+        <div class="brand-tag" style="font-size:8px;letter-spacing:3px">VIDEOBOOTH 360</div></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="side-foot">
+        <div class="who" id="side-who"></div>
+        <button class="linklike" onclick="App.logout()">Se déconnecter →</button>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <div style="display:flex;align-items:center;gap:14px">
+          <button class="burger" onclick="App.toggleNav(true)">☰</button>
+          <div><h1 id="page-title">Tableau de bord</h1><div class="sub" id="page-sub"></div></div>
+        </div>
+        <div id="top-actions"></div>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="toast"><span class="tk">✓</span><span id="toast-msg"></span></div>
+
+<script>
+/* ============================================================
+   LE PETIT BOOTH — CRM interne (V1)
+   Persistance: window.storage (fallback mémoire)
+============================================================ */
+const App = (()=>{
+"use strict";
+
+/* ---------- storage layer (avec fallback mémoire) ---------- */
+const mem = {};
+const store = {
+  async get(k){ try{ if(window.storage){const r=await window.storage.get(k);return r?r.value:null;} }catch(e){} return mem[k]??null; },
+  async set(k,v){ mem[k]=v; try{ if(window.storage) await window.storage.set(k,v); }catch(e){} },
+  async del(k){ delete mem[k]; try{ if(window.storage) await window.storage.delete(k); }catch(e){} }
+};
+const K_CLIENTS='lpb_clients', K_PREST='lpb_prest', K_TMPL='lpb_tmpl';
+
+/* ---------- catalogue marque ---------- */
+const FORMULES = {
+  essentiel:{nom:'Essentiel', prix:290, desc:"L'essentiel pour capturer vos premiers souvenirs"},
+  experience:{nom:'Expérience', prix:490, desc:"L'expérience complète qui marque vos invités"},
+  signature:{nom:'Signature', prix:990, desc:"L'expérience VIP sans limites"}
+};
+const EVENT_TYPES=['Mariage','Entreprise','Anniversaire','Séminaire','Soirée privée','Autre'];
+const STAGES=[
+  {id:'demande',  label:'Demande reçue',        cal:'--c-demande', ccol:'#b15cff'},
+  {id:'devis',    label:'Devis envoyé',         cal:'--c-devis',   ccol:'#f5c542'},
+  {id:'attente',  label:'En attente de réponse',cal:'--c-attente', ccol:'#4d9dff'},
+  {id:'acompte',  label:'Acompte reçu',         cal:'--c-acompte', ccol:'#2dd4bf'},
+  {id:'confirme', label:'Événement confirmé',   cal:'--c-confirme',ccol:'#3ecf8e'},
+  {id:'termine',  label:'Prestation terminée',  cal:'--c-termine', ccol:'#8d8aa6'}
+];
+const stageOf=id=>STAGES.find(s=>s.id===id)||STAGES[0];
+const DEFAULT_TMPL={
+  m1:{label:"1 mois avant", obj:"Votre prestation Le Petit Booth approche ✨", body:"Bonjour {prenom},\n\nVotre événement {type} du {date} approche ! Nous sommes ravis de préparer votre expérience Vidéo Booth 360.\n\nNous restons disponibles pour tout détail.\n\nL'équipe Le Petit Booth"},
+  w2:{label:"2 semaines avant", obj:"J-15 avant votre événement", body:"Bonjour {prenom},\n\nPlus que 2 semaines avant votre {type} ! Pensez à nous confirmer l'adresse exacte et l'accès au lieu : {lieu}.\n\nÀ très vite,\nLe Petit Booth"},
+  w1:{label:"1 semaine avant", obj:"J-7 — derniers préparatifs", body:"Bonjour {prenom},\n\nVotre événement est dans une semaine ! Notre prestataire {prestataire} arrivera pour l'installation avant {heure}.\n\nLe Petit Booth"},
+  d1:{label:"La veille", obj:"C'est demain ! 🎉", body:"Bonjour {prenom},\n\nGrand jour demain ! Rendez-vous le {date} à {heure} — {lieu}. Préparez-vous à entrer dans une autre dimension.\n\nLe Petit Booth"}
+};
+
+/* ---------- state ---------- */
+let state={
+  user:null, route:'dashboard',
+  clients:[], prestataires:[], templates:DEFAULT_TMPL,
+  loginMode:'admin', pipeSearch:'', listSearch:'',
+  calView:'month', calDate:new Date(2026,5,6),
+  prestSel:null, modalClientId:null
+};
+
+/* ---------- utils ---------- */
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur=n=>Number(n||0).toLocaleString('fr-FR')+' €';
+const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+const DOW=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+const parseD=s=>{ if(!s)return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
+const fmtD=dt=>dt?`${String(dt.getDate()).padStart(2,'0')} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`:'—';
+const fmtShort=dt=>dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'—';
+const sameDay=(a,b)=>a&&b&&a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+const today=()=>new Date(2026,5,6);
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function toast(msg){const t=$('#toast');$('#toast-msg').textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* ---------- icons ---------- */
+const I={
+  dash:'<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>',
+  pipe:'<path d="M4 5h16M4 12h10M4 19h6"/>',
+  cal:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
+  team:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5"/><circle cx="17" cy="9" r="2.6"/><path d="M21 20c0-2.6-1.8-4-4-4"/>',
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+  clients:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/>',
+  euro:'<path d="M17 7a6 6 0 1 0 0 10M5 10h8M5 14h8"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  flag:'<path d="M5 21V4h13l-2 4 2 4H5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  pin:'<path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/>',
+  doc:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',
+  ticket:'<path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/>'
+};
+const ic=(p,w=19)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+
+/* ---------- seed ---------- */
+function seed(){
+  const c=(o)=>Object.assign({id:uid(),documents:{},notes:'',createdAt:Date.now()},o);
+  return [
+    c({prenom:'Camille',nom:'Royer',telephone:'06 21 45 78 90',email:'camille.royer@gmail.com',typeEvenement:'Mariage',datePrestation:'2026-06-14',heureDebut:'18:00',heureFin:'23:00',adresse:'Domaine de la Roseraie, Saint-Gilles',lieu:'Domaine de la Roseraie',formule:'experience',prestataire:'Kevin Obscur',montant:490,status:'confirme',notes:'Voix off personnalisée au nom des mariés.'}),
+    c({prenom:'Thomas',nom:'Lemoine',telephone:'06 88 12 34 56',email:'t.lemoine@entreprise.re',typeEvenement:'Entreprise',datePrestation:'2026-06-20',heureDebut:'19:00',heureFin:'00:00',adresse:'Hôtel Le Récif, L\'Hermitage',lieu:'Hôtel Le Récif',formule:'signature',prestataire:'Fabien',montant:990,status:'acompte',notes:'Soirée annuelle, 120 invités. Animateur dédié demandé.'}),
+    c({prenom:'Sarah',nom:'Benali',telephone:'06 77 90 11 22',email:'sarah.benali@gmail.com',typeEvenement:'Anniversaire',datePrestation:'2026-06-28',heureDebut:'20:00',heureFin:'22:00',adresse:'12 rue des Lataniers, Saint-Paul',lieu:'Salle des Lataniers',formule:'essentiel',prestataire:'Kevin Obscur',montant:290,status:'devis'}),
+    c({prenom:'Maxime',nom:'Hoarau',telephone:'06 33 22 11 00',email:'maxime.hoarau@gmail.com',typeEvenement:'Mariage',datePrestation:'2026-07-11',heureDebut:'17:30',heureFin:'22:30',adresse:'Plage de Boucan Canot',lieu:'Boucan Canot',formule:'experience',prestataire:'Fabien',montant:490,status:'attente'}),
+    c({prenom:'Léa',nom:'Grondin',telephone:'06 45 67 89 01',email:'lea.grondin@gmail.com',typeEvenement:'Séminaire',datePrestation:'2026-07-25',heureDebut:'14:00',heureFin:'18:00',adresse:'Centre de congrès, Saint-Denis',lieu:'Centre de congrès',formule:'signature',prestataire:'Kevin Obscur',montant:990,status:'confirme'}),
+    c({prenom:'Antoine',nom:'Payet',telephone:'06 90 80 70 60',email:'antoine.payet@gmail.com',typeEvenement:'Soirée privée',datePrestation:'2026-05-30',heureDebut:'21:00',heureFin:'23:00',adresse:'Villa Étang Salé',lieu:'Villa privée',formule:'experience',prestataire:'Fabien',montant:490,status:'termine'}),
+    c({prenom:'Inès',nom:'Vidot',telephone:'06 11 22 33 44',email:'ines.vidot@gmail.com',typeEvenement:'Anniversaire',datePrestation:'2026-08-09',heureDebut:'19:30',heureFin:'21:30',adresse:'',lieu:'',formule:'essentiel',prestataire:'',montant:290,status:'demande'})
+  ];
+}
+
+/* ---------- persistence ---------- */
+async function load(){
+  const cs=await store.get(K_CLIENTS);
+  state.clients = cs ? JSON.parse(cs) : seed();
+  if(!cs) await store.set(K_CLIENTS, JSON.stringify(state.clients));
+  const ps=await store.get(K_PREST);
+  state.prestataires = ps ? JSON.parse(ps) : [{id:uid(),nom:'Kevin Obscur',role:'Vidéo Booth 360 · Animation'},{id:uid(),nom:'Fabien',role:'Vidéo Booth 360 · Montage'}];
+  if(!ps) await store.set(K_PREST, JSON.stringify(state.prestataires));
+  const tm=await store.get(K_TMPL);
+  state.templates = tm ? JSON.parse(tm) : DEFAULT_TMPL;
+}
+const saveClients=()=>store.set(K_CLIENTS,JSON.stringify(state.clients));
+const savePrest=()=>store.set(K_PREST,JSON.stringify(state.prestataires));
+const saveTmpl=()=>store.set(K_TMPL,JSON.stringify(state.templates));
+
+/* ---------- derived ---------- */
+const upcoming=()=>state.clients.filter(c=>c.datePrestation&&parseD(c.datePrestation)>=stripTime(today())&&c.status!=='termine')
+  .sort((a,b)=>a.datePrestation.localeCompare(b.datePrestation));
+const stripTime=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate());
+function findClient(id){return state.clients.find(c=>c.id===id);}
+
+/* =========================================================
+   LOGIN
+========================================================= */
+function loginTab(m){state.loginMode=m;
+  $('#tab-admin').classList.toggle('active',m==='admin');
+  $('#tab-client').classList.toggle('active',m==='client');
+  $('#login-admin').style.display=m==='admin'?'block':'none';
+  $('#login-client').style.display=m==='client'?'block':'none';
+}
+function doAdminLogin(){
+  const p=$('#admin-pass').value.trim();
+  if(p==='admin'){ state.user={role:'admin',name:'Administrateur'}; enterApp(); }
+  else $('#admin-err').textContent='Mot de passe incorrect.';
+}
+function doClientLogin(){
+  const e=$('#client-email').value.trim().toLowerCase();
+  const cl=state.clients.find(c=>(c.email||'').toLowerCase()===e);
+  if(cl){ state.user={role:'client',name:cl.prenom+' '+cl.nom,clientId:cl.id}; state.route='portal'; enterApp(); }
+  else $('#client-err').textContent="Aucune prestation trouvée pour cet email.";
+}
+function logout(){ state.user=null; state.route='dashboard';
+  $('#app').style.display='none'; $('#login').style.display='flex';
+  $('#admin-pass').value=''; $('#client-email').value=''; $('#admin-err').textContent=''; $('#client-err').textContent='';
+}
+function enterApp(){
+  $('#login').style.display='none'; $('#app').style.display='block';
+  $('#side-who').textContent=state.user.name;
+  buildNav(); render();
+}
+
+/* =========================================================
+   NAV + SHELL
+========================================================= */
+const ADMIN_NAV=[
+  {id:'dashboard',label:'Tableau de bord',icon:I.dash},
+  {id:'pipeline',label:'CRM · Pipeline',icon:I.pipe},
+  {id:'clients',label:'Clients',icon:I.clients},
+  {id:'planning',label:'Planning',icon:I.cal},
+  {id:'prestataires',label:'Prestataires',icon:I.team},
+  {id:'emails',label:'Emails automatiques',icon:I.mail}
+];
+function buildNav(){
+  if(state.user.role==='client'){ $('#nav').innerHTML=''; $('.side-logo').style.cursor='default'; return; }
+  $('#nav').innerHTML=ADMIN_NAV.map(n=>`<a data-route="${n.id}" onclick="App.go('${n.id}')">
+    ${ic(n.icon)} ${n.label}</a>`).join('');
+}
+function go(r){ state.route=r; toggleNav(false); render(); }
+function toggleNav(open){ $('#sidebar').classList.toggle('open',open); $('#scrim').classList.toggle('open',open); }
+
+const TITLES={dashboard:['Tableau de bord','Vue d\'ensemble de votre activité'],
+  pipeline:['CRM · Pipeline','Glissez les clients entre les étapes'],
+  clients:['Clients','Toutes vos fiches clients'],
+  planning:['Planning','Vos prestations dans le temps'],
+  prestataires:['Prestataires','Plannings et missions de l\'équipe'],
+  emails:['Emails automatiques','Relances programmées avant chaque événement'],
+  portal:['Mon espace','Votre prestation Le Petit Booth']};
+
+function render(){
+  document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('active',a.dataset.route===state.route));
+  const t=TITLES[state.route]||['',''];
+  $('#page-title').textContent=t[0]; $('#page-sub').textContent=t[1];
+  $('#top-actions').innerHTML='';
+  const c=$('#content');
+  if(state.user.role==='client'){ c.innerHTML=viewPortal(); return; }
+  switch(state.route){
+    case 'dashboard': c.innerHTML=viewDashboard(); break;
+    case 'pipeline': topAction(`<button class="btn" onclick="App.openClient()">${ic(I.plus,16)} Nouveau client</button>`); c.innerHTML=viewPipeline(); bindPipe(); break;
+    case 'clients': topAction(`<button class="btn" onclick="App.openClient()">${ic(I.plus,16)} Nouveau client</button>`); c.innerHTML=viewClients(); break;
+    case 'planning': c.innerHTML=viewPlanning(); break;
+    case 'prestataires': c.innerHTML=viewPrestataires(); break;
+    case 'emails': c.innerHTML=viewEmails(); break;
+  }
+}
+function topAction(html){$('#top-actions').innerHTML=html;}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+function viewDashboard(){
+  const cl=state.clients;
+  const devis=cl.filter(c=>['devis','attente'].includes(c.status)).length;
+  const conf=cl.filter(c=>['acompte','confirme'].includes(c.status)).length;
+  const term=cl.filter(c=>c.status==='termine').length;
+  const t=today();
+  const caMois=cl.filter(c=>{const d=parseD(c.datePrestation);return d&&d.getMonth()===t.getMonth()&&d.getFullYear()===t.getFullYear()&&c.status!=='demande';})
+    .reduce((s,c)=>s+Number(c.montant||0),0);
+  const up=upcoming();
+  const next=up[0];
+  const stat=(icon,val,lbl,small)=>`<div class="stat card"><div class="ic">${ic(icon)}</div>
+    <div class="val ${small?'small':''}">${val}</div><div class="lbl">${lbl}</div></div>`;
+  return `
+  <div class="stats">
+    ${stat(I.doc,devis,'Devis envoyés / en attente')}
+    ${stat(I.check,conf,'Prestations confirmées')}
+    ${stat(I.flag,term,'Prestations terminées')}
+    ${stat(I.euro,eur(caMois),'CA prévisionnel du mois',true)}
+    ${stat(I.clock, next?fmtShort(parseD(next.datePrestation)):'—', next?'Prochaine : '+esc(next.prenom+' '+next.nom):'Aucune prestation',true)}
+  </div>
+  <div class="grid2">
+    <div class="card" style="padding:22px">
+      <div class="sec-title">Prochains événements <span class="pill">${up.length}</span></div>
+      ${up.length?up.slice(0,6).map(c=>{const s=stageOf(c.status);return `
+        <div class="evrow" onclick="App.openClient('${c.id}')" style="cursor:pointer">
+          <span class="dot" style="color:${s.ccol}"></span>
+          <div><div class="nm">${esc(c.prenom)} ${esc(c.nom)}</div>
+          <div class="me">${esc(c.typeEvenement)} · ${esc(c.lieu||'Lieu à définir')} · ${esc(c.prestataire||'Non assigné')}</div></div>
+          <div class="rt"><div class="d">${fmtShort(parseD(c.datePrestation))}</div>
+          <div class="h">${esc(c.heureDebut||'')}${c.heureFin?' – '+esc(c.heureFin):''}</div></div>
+        </div>`}).join(''):`<div class="empty">Aucun événement à venir.</div>`}
+    </div>
+    <div class="card" style="padding:22px">
+      <div class="sec-title">Répartition du pipeline</div>
+      ${STAGES.map(s=>{const n=cl.filter(c=>c.status===s.id).length;const pct=cl.length?Math.round(n/cl.length*100):0;
+        return `<div style="margin-bottom:13px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+          <span style="font-weight:600">${s.label}</span><span style="color:var(--muted2)">${n}</span></div>
+          <div style="height:7px;background:rgba(12,7,22,.6);border-radius:6px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${s.ccol};border-radius:6px;transition:.4s"></div></div></div>`;}).join('')}
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   PIPELINE (drag & drop)
+========================================================= */
+function viewPipeline(){
+  const q=state.pipeSearch.toLowerCase();
+  return `
+  <div class="toolbar">
+    <div class="search">${ic(I.search,17)}
+      <input placeholder="Rechercher un client…" value="${esc(state.pipeSearch)}" oninput="App.pipeSearch(this.value)"></div>
+  </div>
+  <div class="pipe-wrap"><div class="pipe">
+    ${STAGES.map(s=>{
+      const cards=state.clients.filter(c=>c.status===s.id &&
+        (!q || (c.prenom+' '+c.nom+' '+c.typeEvenement+' '+(c.lieu||'')).toLowerCase().includes(q)));
+      return `<div class="col" data-stage="${s.id}">
+        <div class="col-head"><span class="dot" style="width:9px;height:9px;border-radius:50%;background:${s.ccol};box-shadow:0 0 8px ${s.ccol}"></span>
+          ${s.label}<span class="cnt">${cards.length}</span></div>
+        <div class="col-body" data-stage="${s.id}">
+          ${cards.map(c=>kard(c,s)).join('')||`<div style="color:var(--muted2);font-size:12px;text-align:center;padding:14px 0">—</div>`}
+        </div></div>`;
+    }).join('')}
+  </div></div>`;
+}
+function kard(c,s){
+  return `<div class="kard" draggable="true" data-id="${c.id}" style="border-left-color:${s.ccol}" onclick="App.openClient('${c.id}')">
+    <div class="knm">${esc(c.prenom)} ${esc(c.nom)}</div>
+    <div class="ktype">${esc(c.typeEvenement)}${c.datePrestation?' · '+fmtShort(parseD(c.datePrestation)):''}</div>
+    ${c.prestataire?`<div class="kmeta">${ic(I.user,12)} ${esc(c.prestataire)}</div>`:''}
+    <div class="kfoot"><span class="kdate">${esc(FORMULES[c.formule]?.nom||'—')}</span>
+      <span class="kamt gtext">${eur(c.montant)}</span></div>
+  </div>`;
+}
+function pipeSearch(v){state.pipeSearch=v;}
+let dragId=null;
+function bindPipe(){
+  document.querySelectorAll('.kard').forEach(k=>{
+    k.addEventListener('dragstart',e=>{dragId=k.dataset.id;k.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
+    k.addEventListener('dragend',()=>{dragId=null;k.classList.remove('dragging');});
+  });
+  document.querySelectorAll('.col').forEach(col=>{
+    col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop');});
+    col.addEventListener('dragleave',()=>col.classList.remove('drop'));
+    col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drop');
+      if(!dragId)return; const c=findClient(dragId); const st=col.dataset.stage;
+      if(c&&c.status!==st){c.status=st;saveClients();render();bindPipe?.();toast(`${c.prenom} → ${stageOf(st).label}`);}
+    });
+  });
+}
+
+/* =========================================================
+   CLIENTS (liste)
+========================================================= */
+function viewClients(){
+  const q=state.listSearch.toLowerCase();
+  const list=state.clients.filter(c=>!q||(c.prenom+' '+c.nom+' '+c.email+' '+c.typeEvenement).toLowerCase().includes(q))
+    .sort((a,b)=>(b.datePrestation||'').localeCompare(a.datePrestation||''));
+  return `
+  <div class="toolbar">
+    <div class="search">${ic(I.search,17)}
+      <input placeholder="Rechercher (nom, email, type…)" value="${esc(state.listSearch)}" oninput="App.listSearch(this.value)"></div>
+  </div>
+  <div class="card" style="overflow:hidden">
+    ${list.length?list.map(c=>{const s=stageOf(c.status);return `
+      <div class="evrow" style="cursor:pointer;padding:15px 20px" onclick="App.openClient('${c.id}')">
+        <span class="dot" style="color:${s.ccol}"></span>
+        <div style="min-width:0"><div class="nm">${esc(c.prenom)} ${esc(c.nom)}</div>
+          <div class="me">${esc(c.email||'—')} · ${esc(c.telephone||'')}</div></div>
+        <div class="rt" style="margin-left:auto;display:flex;align-items:center;gap:18px">
+          <div style="text-align:right"><div class="d">${esc(c.typeEvenement)}</div>
+            <div class="h">${c.datePrestation?fmtShort(parseD(c.datePrestation)):'Date à définir'}</div></div>
+          <span class="badge" style="color:${s.ccol};border-color:${s.ccol}40"><span class="d"></span>${s.label}</span>
+        </div>
+      </div>`;}).join(''):`<div class="empty">Aucun client. Cliquez sur « Nouveau client » pour commencer.</div>`}
+  </div>`;
+}
+function listSearch(v){state.listSearch=v;}
+
+/* =========================================================
+   FICHE CLIENT (modal)
+========================================================= */
+function openClient(id){ state.modalClientId=id||null; renderModal(); }
+function closeModal(){ state.modalClientId=undefined; $('#modal-root').innerHTML=''; }
+function renderModal(){
+  const isNew=!state.modalClientId;
+  const c=isNew?{id:'',prenom:'',nom:'',telephone:'',email:'',typeEvenement:'Mariage',datePrestation:'',heureDebut:'',heureFin:'',adresse:'',lieu:'',formule:'experience',prestataire:'',montant:490,status:'demande',documents:{},notes:''}:Object.assign({},findClient(state.modalClientId));
+  const s=stageOf(c.status);
+  const f=(label,key,type='text',ph='')=>`<div class="field"><label>${label}</label>
+    <input id="cf-${key}" type="${type}" value="${esc(c[key])}" placeholder="${ph}"></div>`;
+  const docRow=(key,label)=>{const d=c.documents&&c.documents[key];return `
+    <div class="docrow"><div class="di">${ic(I.doc,18)}</div>
+      <div style="min-width:0">${d?`<div class="dn">${esc(d.name)}</div><div class="ds">${(d.size/1024).toFixed(0)} Ko</div>`
+        :`<div class="dn" style="color:var(--muted2)">${label}</div><div class="ds">Aucun fichier</div>`}</div>
+      <div class="da">${d?`<button class="linklike" onclick="App.downloadDoc('${key}')">Télécharger</button>
+        <button class="linklike" style="color:#ff8585" onclick="App.removeDoc('${key}')">Retirer</button>`
+        :`<label class="btn ghost sm" style="cursor:pointer">Importer
+          <input type="file" accept="application/pdf" style="display:none" onchange="App.uploadDoc('${key}',this)"></label>`}</div>
+    </div>`;};
+  const opts=(arr,sel,vfn,lfn)=>arr.map(o=>`<option value="${vfn(o)}" ${vfn(o)===sel?'selected':''}>${lfn(o)}</option>`).join('');
+  const html=`
+  <div class="overlay" onclick="if(event.target===this)App.closeModal()">
+   <div class="modal">
+    <div class="modal-head">
+      <div class="ti"><h2>${isNew?'Nouveau client':esc(c.prenom+' '+c.nom)}</h2>
+        <div class="meta">${isNew?'Renseignez les informations de la prestation':
+          `<span class="badge" style="color:${s.ccol};border-color:${s.ccol}40"><span class="d"></span>${s.label}</span>`}</div></div>
+      <button class="modal-close" onclick="App.closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="block-title">Informations générales</div>
+      <div class="form-grid">${f('Prénom','prenom')}${f('Nom','nom')}${f('Téléphone','telephone','tel','06 …')}${f('Email','email','email','client@email.com')}</div>
+
+      <div class="block-title">Informations événement</div>
+      <div class="form-grid">
+        <div class="field"><label>Type d'événement</label><select id="cf-typeEvenement">${opts(EVENT_TYPES,c.typeEvenement,x=>x,x=>x)}</select></div>
+        ${f('Date de prestation','datePrestation','date')}
+        ${f('Heure de début','heureDebut','time')}${f('Heure de fin','heureFin','time')}
+        <div class="field full"><label>Adresse</label><input id="cf-adresse" value="${esc(c.adresse)}" placeholder="Adresse complète"></div>
+        <div class="field full"><label>Lieu (nom)</label><input id="cf-lieu" value="${esc(c.lieu)}" placeholder="Ex. Domaine de la Roseraie"></div>
+      </div>
+
+      <div class="block-title">Prestation</div>
+      <div class="form-grid">
+        <div class="field"><label>Formule choisie</label><select id="cf-formule" onchange="App.onFormule(this.value)">
+          ${opts(Object.entries(FORMULES),c.formule,e=>e[0],e=>e[1].nom+' — '+e[1].prix+' €')}</select></div>
+        <div class="field"><label>Prestataire assigné</label><select id="cf-prestataire">
+          <option value="">— Non assigné —</option>${opts(state.prestataires,c.prestataire,p=>p.nom,p=>p.nom)}</select></div>
+        <div class="field"><label>Montant total (€)</label><input id="cf-montant" type="number" value="${esc(c.montant)}"></div>
+        <div class="field"><label>Étape du pipeline</label><select id="cf-status">${opts(STAGES,c.status,x=>x.id,x=>x.label)}</select></div>
+      </div>
+
+      <div class="block-title">Documents</div>
+      ${docRow('devis','Devis (PDF)')}${docRow('factureAcompte','Facture acompte (PDF)')}${docRow('factureSolde','Facture solde (PDF)')}
+
+      <div class="block-title">Notes internes</div>
+      <textarea id="cf-notes" placeholder="Notes, demandes spéciales, logistique…">${esc(c.notes)}</textarea>
+    </div>
+    <div class="modal-foot">
+      ${!isNew?`<button class="btn danger ghost" style="margin-right:auto;background:transparent;border:1px solid rgba(255,107,107,.4);color:#ff8585" onclick="App.deleteClient('${c.id}')">Supprimer</button>`:''}
+      <button class="btn ghost" onclick="App.closeModal()">Annuler</button>
+      <button class="btn" onclick="App.saveClient('${c.id}')">${ic(I.check,16)} Enregistrer</button>
+    </div>
+   </div>
+  </div>`;
+  $('#modal-root').innerHTML=html;
+}
+function onFormule(v){ const m=$('#cf-montant'); if(m && FORMULES[v]) m.value=FORMULES[v].prix; }
+function getForm(){
+  const g=k=>($('#cf-'+k)?.value??'');
+  return {prenom:g('prenom'),nom:g('nom'),telephone:g('telephone'),email:g('email'),
+    typeEvenement:g('typeEvenement'),datePrestation:g('datePrestation'),heureDebut:g('heureDebut'),heureFin:g('heureFin'),
+    adresse:g('adresse'),lieu:g('lieu'),formule:g('formule'),prestataire:g('prestataire'),
+    montant:Number(g('montant')||0),status:g('status'),notes:g('notes')};
+}
+function saveClient(id){
+  const data=getForm();
+  if(!data.prenom&&!data.nom){toast('Indiquez au moins un nom.');return;}
+  if(id){ const c=findClient(id); Object.assign(c,data); }
+  else { state.clients.push(Object.assign({id:uid(),documents:{},createdAt:Date.now()},data)); }
+  saveClients(); closeModal(); render(); if(state.route==='pipeline')bindPipe(); toast('Fiche enregistrée ✓');
+}
+function deleteClient(id){
+  if(!confirm('Supprimer définitivement cette fiche client ?'))return;
+  state.clients=state.clients.filter(c=>c.id!==id); saveClients(); closeModal(); render(); if(state.route==='pipeline')bindPipe(); toast('Fiche supprimée');
+}
+function uploadDoc(key,input){
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{ const c=findClient(state.modalClientId);
+    if(!c){toast('Enregistrez d\'abord la fiche.');return;}
+    c.documents=c.documents||{}; c.documents[key]={name:file.name,size:file.size,data:r.result};
+    saveClients(); renderModal(); toast('Document importé ✓'); };
+  r.readAsDataURL(file);
+}
+function downloadDoc(key){ const c=findClient(state.modalClientId); const d=c?.documents?.[key]; if(!d)return;
+  const a=document.createElement('a'); a.href=d.data; a.download=d.name; a.click(); }
+function removeDoc(key){ const c=findClient(state.modalClientId); if(c?.documents){delete c.documents[key];saveClients();renderModal();} }
+
+/* =========================================================
+   PLANNING (calendrier)
+========================================================= */
+function eventsOn(d){ return state.clients.filter(c=>c.datePrestation&&sameDay(parseD(c.datePrestation),d)); }
+function viewPlanning(){
+  const v=state.calView;
+  const seg=`<div class="seg">${['day','week','month','year'].map(x=>
+    `<button class="${v===x?'active':''}" onclick="App.setCalView('${x}')">${({day:'Jour',week:'Semaine',month:'Mois',year:'Année'})[x]}</button>`).join('')}</div>`;
+  const legend=`<div class="legend">
+    <span><i style="background:var(--c-devis)"></i>Devis</span>
+    <span><i style="background:var(--c-attente)"></i>En attente</span>
+    <span><i style="background:var(--c-confirme)"></i>Confirmé</span>
+    <span><i style="background:var(--c-termine)"></i>Terminé</span></div>`;
+  return `<div class="cal-top">
+    <div class="cal-nav">
+      <button class="icon-btn" onclick="App.calNav(-1)">‹</button>
+      <button class="icon-btn" onclick="App.calToday()">${ic(I.cal,16)}</button>
+      <button class="icon-btn" onclick="App.calNav(1)">›</button>
+    </div>
+    <div class="cal-title">${calTitle()}</div>
+    ${seg}${legend}
+  </div>
+  <div class="card" style="padding:16px">${
+    v==='month'?calMonth():v==='week'?calWeek():v==='day'?calDay():calYear()
+  }</div>`;
+}
+function setCalView(v){state.calView=v;render();}
+function calToday(){state.calDate=today();render();}
+function calNav(dir){const d=new Date(state.calDate);
+  if(state.calView==='month')d.setMonth(d.getMonth()+dir);
+  else if(state.calView==='week')d.setDate(d.getDate()+7*dir);
+  else if(state.calView==='day')d.setDate(d.getDate()+dir);
+  else d.setFullYear(d.getFullYear()+dir);
+  state.calDate=d;render();}
+function calTitle(){const d=state.calDate;
+  if(state.calView==='year')return d.getFullYear();
+  if(state.calView==='day')return fmtD(d);
+  if(state.calView==='week'){const s=startOfWeek(d);const e=new Date(s);e.setDate(s.getDate()+6);
+    return `${s.getDate()} – ${e.getDate()} ${MONTHS[e.getMonth()]} ${e.getFullYear()}`;}
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;}
+function startOfWeek(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);x.setHours(0,0,0,0);return x;}
+function evChip(c,cls){const s=stageOf(c.status);
+  return `<div class="${cls}" style="background:${s.ccol}" title="${esc(c.prenom+' '+c.nom)}" onclick="event.stopPropagation();App.openClient('${c.id}')">${esc(c.heureDebut?c.heureDebut+' ':'')}${esc(c.prenom)} ${esc(c.nom)}</div>`;}
+
+function calMonth(){
+  const d=state.calDate; const first=new Date(d.getFullYear(),d.getMonth(),1);
+  const start=startOfWeek(first); const cells=[];
+  for(let i=0;i<42;i++){const cur=new Date(start);cur.setDate(start.getDate()+i);cells.push(cur);}
+  return `<div class="cal-grid">
+    ${DOW.map(x=>`<div class="cal-dow">${x}</div>`).join('')}
+    ${cells.map(cur=>{const out=cur.getMonth()!==d.getMonth();const evs=eventsOn(cur);const isT=sameDay(cur,today());
+      return `<div class="cal-cell ${out?'out':''} ${isT?'today':''}">
+        <span class="dn">${cur.getDate()}</span>
+        ${evs.slice(0,3).map(c=>evChip(c,'cal-ev')).join('')}
+        ${evs.length>3?`<span class="cnt-mini" style="font-size:10px;color:var(--muted2)">+${evs.length-3}</span>`:''}
+        ${evs.length?`<span class="cnt-mini" style="display:none">${evs.length}</span>`:''}
+      </div>`;}).join('')}
+  </div>`;
+}
+function calWeek(){
+  const s=startOfWeek(state.calDate);
+  const days=[...Array(7)].map((_,i)=>{const x=new Date(s);x.setDate(s.getDate()+i);return x;});
+  const hours=[...Array(15)].map((_,i)=>i+8); // 8h → 22h
+  return `<div class="week-grid">
+    <div class="wh"></div>
+    ${days.map(x=>`<div class="wh">${DOW[(x.getDay()+6)%7]}<small>${x.getDate()}/${x.getMonth()+1}</small></div>`).join('')}
+    ${hours.map(h=>`<div class="tlabel">${String(h).padStart(2,'0')}h</div>
+      ${days.map(x=>{const evs=eventsOn(x).filter(c=>{const sh=parseInt((c.heureDebut||'0').split(':')[0]);return sh===h;});
+        return `<div class="tcell">${evs.map(c=>evChip(c,'week-ev')).join('')}</div>`;}).join('')}`).join('')}
+  </div>`;
+}
+function calDay(){
+  const d=state.calDate; const evs=eventsOn(d).sort((a,b)=>(a.heureDebut||'').localeCompare(b.heureDebut||''));
+  if(!evs.length)return `<div class="empty">Aucune prestation le ${fmtD(d)}.</div>`;
+  return evs.map(c=>{const s=stageOf(c.status);return `
+    <div class="evrow" style="cursor:pointer;padding:16px 8px" onclick="App.openClient('${c.id}')">
+      <span class="dot" style="color:${s.ccol}"></span>
+      <div><div class="nm">${esc(c.prenom)} ${esc(c.nom)} — ${esc(c.typeEvenement)}</div>
+        <div class="me">${esc(c.lieu||'Lieu à définir')} · ${esc(c.prestataire||'Non assigné')}</div></div>
+      <div class="rt"><div class="d">${esc(c.heureDebut||'—')}${c.heureFin?' – '+esc(c.heureFin):''}</div>
+        <div class="h">${esc(FORMULES[c.formule]?.nom||'')}</div></div>
+    </div>`;}).join('');
+}
+function calYear(){
+  const y=state.calDate.getFullYear();
+  return `<div class="year-grid">
+    ${MONTHS.map((mn,mi)=>{const first=new Date(y,mi,1);const start=startOfWeek(first);
+      const cells=[...Array(42)].map((_,i)=>{const x=new Date(start);x.setDate(start.getDate()+i);return x;});
+      return `<div class="ymonth card" style="background:rgba(12,7,22,.4);cursor:pointer" onclick="App.openMonth(${mi})">
+        <h4>${mn}</h4>
+        <div class="ymini">${DOW.map(x=>`<span style="color:var(--muted2);font-size:8px">${x[0]}</span>`).join('')}
+        ${cells.map(cur=>{const out=cur.getMonth()!==mi;const has=eventsOn(cur).length;const s=has?stageOf(eventsOn(cur)[0].status):null;
+          return `<span class="${has?'has':''} ${sameDay(cur,today())?'today-y':''}" style="${out?'opacity:.25;':''}${has?'background:'+s.ccol:''}">${cur.getDate()}</span>`;}).join('')}
+        </div></div>`;}).join('')}
+  </div>`;
+}
+function openMonth(mi){state.calDate=new Date(state.calDate.getFullYear(),mi,1);state.calView='month';render();}
+
+/* =========================================================
+   PRESTATAIRES
+========================================================= */
+function viewPrestataires(){
+  return `<div class="prest-grid">
+    ${state.prestataires.map(p=>{
+      const miss=state.clients.filter(c=>c.prestataire===p.nom);
+      const up=miss.filter(c=>c.datePrestation&&parseD(c.datePrestation)>=stripTime(today())&&c.status!=='termine')
+        .sort((a,b)=>a.datePrestation.localeCompare(b.datePrestation));
+      const done=miss.filter(c=>c.status==='termine').length;
+      const ini=p.nom.split(' ').map(x=>x[0]).slice(0,2).join('');
+      return `<div class="prest card">
+        <div class="ph"><div class="avatar">${esc(ini)}</div>
+          <div><div class="pn">${esc(p.nom)}</div><div class="pr">${esc(p.role||'Prestataire')}</div></div></div>
+        <div class="pstats">
+          <div class="pstat"><b class="gtext">${miss.length}</b><span>missions</span></div>
+          <div class="pstat"><b class="gtext">${up.length}</b><span>à venir</span></div>
+          <div class="pstat"><b class="gtext">${done}</b><span>terminées</span></div>
+        </div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Prochaines missions</div>
+        ${up.length?up.slice(0,5).map(c=>{const s=stageOf(c.status);return `
+          <div class="mini-ev" style="cursor:pointer" onclick="App.openClient('${c.id}')">
+            <span class="dot" style="color:${s.ccol};width:8px;height:8px"></span>
+            <div><b>${esc(c.prenom)} ${esc(c.nom)}</b> · ${esc(c.typeEvenement)}<br>
+            <span style="color:var(--muted2);font-size:11px">${esc(c.lieu||'Lieu à définir')}</span></div>
+            <div class="md">${fmtShort(parseD(c.datePrestation))}<br>${esc(c.heureDebut||'')}</div>
+          </div>`;}).join(''):`<div class="empty" style="padding:16px">Aucune mission à venir.</div>`}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* =========================================================
+   EMAILS AUTOMATIQUES
+========================================================= */
+function scheduleFor(c){
+  const ev=parseD(c.datePrestation); if(!ev)return [];
+  const mk=(days,key)=>{const d=new Date(ev);d.setDate(ev.getDate()-days);return {key,send:d,...state.templates[key]};};
+  return [mk(30,'m1'),mk(14,'w2'),mk(7,'w1'),mk(1,'d1')];
+}
+function fillTmpl(body,c){return body.replace(/{prenom}/g,c.prenom).replace(/{nom}/g,c.nom)
+  .replace(/{type}/g,c.typeEvenement).replace(/{date}/g,fmtD(parseD(c.datePrestation)))
+  .replace(/{heure}/g,c.heureDebut||'').replace(/{lieu}/g,c.lieu||'à confirmer')
+  .replace(/{prestataire}/g,c.prestataire||'notre équipe');}
+function viewEmails(){
+  const up=upcoming();
+  const queue=[];
+  up.forEach(c=>scheduleFor(c).forEach(s=>{ if(s.send>=stripTime(today())) queue.push({c,s}); }));
+  queue.sort((a,b)=>a.s.send-b.s.send);
+  return `
+  <div class="card" style="padding:20px;margin-bottom:22px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px"><div class="sec-title" style="margin:0">Relances programmées <span class="pill">${queue.length}</span></div>
+      <div style="font-size:12.5px;color:var(--muted2);margin-top:4px">Déclencheurs automatiques : 1 mois · 2 semaines · 1 semaine · la veille de chaque événement.</div></div>
+  </div>
+  <div class="grid2" style="align-items:start">
+    <div>
+      <div class="sec-title">File d'attente</div>
+      ${queue.length?queue.slice(0,12).map(({c,s})=>`
+        <div class="mailcard card">
+          <div class="when"><b>${fmtShort(s.send)}</b><span>${s.label}</span></div>
+          <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px">${esc(c.prenom)} ${esc(c.nom)}</div>
+            <div style="font-size:12px;color:var(--muted2)">${esc(s.obj)}</div></div>
+          <span class="badge" style="color:var(--c-attente);border-color:#4d9dff40"><span class="d"></span>Programmé</span>
+        </div>`).join(''):`<div class="empty">Aucune relance programmée.</div>`}
+    </div>
+    <div>
+      <div class="sec-title">Modèles de message</div>
+      ${Object.entries(state.templates).map(([k,t])=>`
+        <div class="tmpl card">
+          <h4>${esc(t.label)}</h4>
+          <div class="tg">Objet : <input value="${esc(t.obj)}" oninput="App.tmplEdit('${k}','obj',this.value)" style="display:inline-block;width:auto;padding:4px 8px;font-size:12px"></div>
+          <textarea oninput="App.tmplEdit('${k}','body',this.value)">${esc(t.body)}</textarea>
+          <div style="font-size:11px;color:var(--muted2);margin-top:7px">Variables : {prenom} {nom} {type} {date} {heure} {lieu} {prestataire}</div>
+        </div>`).join('')}
+      <div style="font-size:11.5px;color:var(--muted2);padding:6px 4px">L'envoi réel sera branché à votre service email lors d'une prochaine version (architecture déjà prête).</div>
+    </div>
+  </div>`;
+}
+let tmplT;
+function tmplEdit(k,field,v){ state.templates[k][field]=v; clearTimeout(tmplT); tmplT=setTimeout(saveTmpl,400); }
+
+/* =========================================================
+   ESPACE CLIENT (portal)
+========================================================= */
+function viewPortal(){
+  const c=findClient(state.user.clientId); if(!c)return `<div class="empty">Aucune prestation trouvée.</div>`;
+  const F=FORMULES[c.formule]||{};
+  const tile=(icon,label,val)=>`<div class="info-tile card"><div class="il">${ic(icon,15)} ${label}</div><div class="iv">${val}</div></div>`;
+  const docs=[['devis','Devis'],['factureAcompte','Facture acompte'],['factureSolde','Facture solde']]
+    .filter(([k])=>c.documents&&c.documents[k]);
+  return `<div class="portal">
+    <div class="hero-card card">
+      <div class="eyebrow">Le Petit Booth · Vidéo Booth 360</div>
+      <h2 class="gtext">Bonjour ${esc(c.prenom)} ✨</h2>
+      <p style="color:var(--muted);max-width:480px;margin:6px auto 0">Voici le récapitulatif de votre prestation. Nous avons hâte de faire de vos invités les stars de votre événement.</p>
+    </div>
+    <div class="info-grid">
+      ${tile(I.cal,'Date',c.datePrestation?fmtD(parseD(c.datePrestation)):'À confirmer')}
+      ${tile(I.clock,'Horaires',(c.heureDebut||'—')+(c.heureFin?' – '+c.heureFin:''))}
+      ${tile(I.pin,'Lieu',esc(c.lieu||c.adresse||'À confirmer'))}
+      ${tile(I.ticket,'Formule',esc(F.nom||'—'))}
+      ${tile(I.user,'Votre prestataire',esc(c.prestataire||'En cours d\'attribution'))}
+      ${tile(I.euro,'Montant total',eur(c.montant))}
+    </div>
+    ${F.desc?`<div class="card" style="padding:20px;margin-bottom:22px;text-align:center;color:var(--muted)">
+      <b class="gold" style="font-family:'Sora';font-size:16px">${esc(F.nom)}</b><br>${esc(F.desc)}</div>`:''}
+    <div class="card" style="padding:22px">
+      <div class="sec-title">Mes documents</div>
+      ${docs.length?docs.map(([k,label])=>{const d=c.documents[k];return `
+        <div class="docrow"><div class="di">${ic(I.doc,18)}</div>
+          <div><div class="dn">${esc(label)}</div><div class="ds">${esc(d.name)}</div></div>
+          <div class="da"><button class="btn neon sm" onclick="App.downloadClientDoc('${c.id}','${k}')">Télécharger</button></div>
+        </div>`;}).join(''):`<div class="empty">Vos documents apparaîtront ici dès qu'ils seront disponibles.</div>`}
+    </div>
+    <div style="text-align:center;margin-top:26px;color:var(--muted2);font-size:13px">
+      Une question ? <a href="mailto:lepetitbooth@gmail.com" style="color:var(--violet)">lepetitbooth@gmail.com</a> · 06 938 138 58
+    </div>
+  </div>`;
+}
+function downloadClientDoc(id,key){const c=findClient(id);const d=c?.documents?.[key];if(!d)return;
+  const a=document.createElement('a');a.href=d.data;a.download=d.name;a.click();}
+
+/* =========================================================
+   INIT
+========================================================= */
+async function init(){
+  await load();
+  const first=state.clients.find(c=>c.email);
+  $('#demo-email').textContent=first?first.email:'camille.royer@gmail.com';
+}
+init();
+
+/* public api */
+return {loginTab,doAdminLogin,doClientLogin,logout,go,toggleNav,
+  openClient,closeModal,saveClient,deleteClient,onFormule,uploadDoc,downloadDoc,removeDoc,
+  pipeSearch,listSearch,
+  setCalView,calNav,calToday,openMonth,
+  tmplEdit,downloadClientDoc};
+})();
+</script>
+</body>
+</html>
