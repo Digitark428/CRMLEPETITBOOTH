@@ -1,0 +1,44 @@
+LE PETIT BOOTH — CRM interne (V3)
+=================================
+
+CONNEXION ADMINISTRATEUR
+  Identifiant : KevinObscur
+  Mot de passe : KevinObscur974
+  (en mode Supabase, le mot de passe est celui défini dans supabase-setup.sql)
+
+CE QUI A CHANGÉ EN V3
+  1. BASE VIERGE : aucun client, aucun prestataire de démonstration.
+     Vous saisissez toutes vos données vous-même.
+
+  2. GESTION DES PRESTATAIRES : vous pouvez maintenant créer / modifier /
+     supprimer vos prestataires depuis l'onglet « Prestataires »
+     (bouton « Nouveau prestataire »). Chaque prestataire garde son lien privé.
+     - Renommer un prestataire réattribue automatiquement ses clients.
+     - Le supprimer repasse ses clients en « non assigné ».
+
+  3. BASE DE DONNÉES SUPABASE (synchronisation multi-appareils) :
+     - Par défaut l'app tourne en mode LOCAL (données sur cet appareil) et
+       fonctionne immédiatement.
+     - Un bandeau indique le mode en cours : « Locale » (orange) ou
+       « Supabase » (vert).
+     - Pour activer Supabase : suivez GUIDE-SUPABASE.txt (10 min, sans coder)
+       et exécutez supabase-setup.sql dans votre projet Supabase.
+     - Une fois activé : tout s'enregistre en base et les liens client /
+       prestataire fonctionnent depuis n'importe quel téléphone.
+
+FICHIERS FOURNIS
+  lepetitbooth-crm.html   — l'application (à ouvrir / héberger)
+  supabase-setup.sql      — à exécuter une fois dans Supabase (SQL Editor)
+  GUIDE-SUPABASE.txt      — marche à suivre pas-à-pas pour la mise en ligne
+  LISEZ-MOI.txt           — ce fichier
+
+RAPPEL DES LIENS PRIVÉS
+  Lien client       : .../lepetitbooth-crm.html#/client/xxxxxxxx
+  Lien prestataire  : .../lepetitbooth-crm.html#/prestataire/xxxxxxxx
+  Pages en lecture seule, mises à jour automatiquement à chaque modification.
+
+NOTE IMPORTANTE
+  Le mode local est testé et fonctionnel. L'intégration Supabase est fournie
+  prête à activer (script + guide + testeur de bandeau). Après avoir branché
+  votre projet, vérifiez que le bandeau passe au vert ; en cas de souci,
+  revenez vers moi avec le message d'erreur affiché.

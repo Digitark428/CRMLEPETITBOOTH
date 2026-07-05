@@ -345,6 +345,7 @@ select option{background:#170d28}
       <button class="btn" style="width:100%;justify-content:center" onclick="App.doAdminLogin()">Accéder au tableau de bord</button>
       <div class="err" id="admin-err"></div>
     </div>
+    <div id="db-badge" style="margin-top:18px;font-size:11.5px;color:var(--muted2)"></div>
   </div>
 </div>
 
@@ -366,6 +367,7 @@ select option{background:#170d28}
       <nav class="nav" id="nav"></nav>
       <div class="side-foot">
         <div class="who" id="side-who"></div>
+        <div id="db-badge-app" style="font-size:11px;color:var(--muted2);margin:3px 0 8px"></div>
         <button class="linklike" onclick="App.logout()">Se déconnecter →</button>
       </div>
     </aside>
@@ -386,6 +388,8 @@ select option{background:#170d28}
 <div id="modal-root"></div>
 <div id="toast"><span class="tk">✓</span><span id="toast-msg"></span></div>
 
+<!-- Librairie Supabase (utilisée uniquement si SUPABASE_URL/KEY sont renseignés) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================
    LE PETIT BOOTH — CRM interne (V1)
@@ -402,6 +406,57 @@ const store = {
   async del(k){ delete mem[k]; try{ if(window.storage) await window.storage.delete(k); }catch(e){} }
 };
 const K_CLIENTS='lpb_clients', K_PREST='lpb_prest', K_TMPL='lpb_tmpl';
+
+/* ================================================================
+   CONFIGURATION BASE DE DONNÉES — SUPABASE
+   ⬇️  COLLEZ ICI LES 2 VALEURS DE VOTRE PROJET SUPABASE
+   (Réglages → API : "Project URL" et clé "anon public")
+   Ces valeurs sont publiques : elles peuvent rester dans le fichier.
+   Tant qu'elles sont vides, l'application fonctionne en mode LOCAL
+   (données sur cet appareil uniquement).
+================================================================ */
+const SUPABASE_URL      = '';   // ex: 'https://xxxxxxxx.supabase.co'
+const SUPABASE_ANON_KEY = '';   // ex: 'eyJhbGciOi...'
+
+let supa=null;
+const SUPA=()=>!!supa;
+function initSupa(){
+  try{
+    if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase && window.supabase.createClient){
+      supa=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {auth:{persistSession:false}});
+    }
+  }catch(e){ supa=null; console.warn('Supabase init échoué, mode local.',e); }
+}
+
+/* ---- couche données (Supabase si configuré, sinon local) ---- */
+const localSaveClients=()=>store.set(K_CLIENTS,JSON.stringify(state.clients));
+const localSavePrest=()=>store.set(K_PREST,JSON.stringify(state.prestataires));
+
+async function dbSaveClient(c){
+  if(SUPA()){ const {error}=await supa.rpc('admin_save',{p_pw:state.adminPw,p_kind:'client',p_id:c.id,p_token:c.token,p_payload:c}); if(error)throw error; }
+  else await localSaveClients();
+}
+async function dbDeleteClient(id){
+  if(SUPA()){ const {error}=await supa.rpc('admin_delete',{p_pw:state.adminPw,p_kind:'client',p_id:id}); if(error)throw error; }
+  else await localSaveClients();
+}
+async function dbSavePrest(p){
+  if(SUPA()){ const {error}=await supa.rpc('admin_save',{p_pw:state.adminPw,p_kind:'prestataire',p_id:p.id,p_token:p.token,p_payload:p}); if(error)throw error; }
+  else await localSavePrest();
+}
+async function dbDeletePrest(id){
+  if(SUPA()){ const {error}=await supa.rpc('admin_delete',{p_pw:state.adminPw,p_kind:'prestataire',p_id:id}); if(error)throw error; }
+  else await localSavePrest();
+}
+async function fetchClientPublic(token){
+  if(SUPA()){ const {data,error}=await supa.rpc('client_by_token',{p_token:token}); return (error||!data)?undefined:data; }
+  return clientByToken(token);
+}
+async function fetchPrestPublic(token){
+  if(SUPA()){ const {data,error}=await supa.rpc('prestataire_by_token',{p_token:token}); return (error||!data)?undefined:data; }
+  const p=prestByToken(token); if(!p)return undefined;
+  return {prestataire:p, missions:state.clients.filter(c=>c.prestataire===p.nom)};
+}
 
 /* ---------- catalogue marque ---------- */
 const FORMULES = {
@@ -428,11 +483,11 @@ const DEFAULT_TMPL={
 
 /* ---------- state ---------- */
 let state={
-  user:null, route:'dashboard',
+  user:null, adminPw:null, route:'dashboard',
   clients:[], prestataires:[], templates:DEFAULT_TMPL,
   loginMode:'admin', pipeSearch:'', listSearch:'',
   calView:'month', calDate:new Date(2026,5,6),
-  prestSel:null, modalClientId:null
+  prestSel:null, modalClientId:null, prestModalId:undefined, editOptions:[]
 };
 
 /* ---------- utils ---------- */
@@ -493,37 +548,22 @@ function copyLink(kind,token){
 function fallbackCopy(text,cb){ const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';
   document.body.appendChild(t);t.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(t);cb&&cb(); }
 
-/* ---------- seed ---------- */
-function seed(){
-  const c=(o)=>Object.assign({id:uid(),token:genToken(),documents:{},notes:'',options:[],createdAt:Date.now()},o);
-  return [
-    c({prenom:'Camille',nom:'Royer',telephone:'06 21 45 78 90',email:'camille.royer@gmail.com',typeEvenement:'Mariage',datePrestation:'2026-06-14',heureDebut:'18:00',heureFin:'23:00',adresse:'Domaine de la Roseraie, Saint-Gilles',lieu:'Domaine de la Roseraie',formule:'experience',prestataire:'Kevin Obscur',montant:490,status:'confirme',notes:'Voix off personnalisée au nom des mariés.'}),
-    c({prenom:'Thomas',nom:'Lemoine',telephone:'06 88 12 34 56',email:'t.lemoine@entreprise.re',typeEvenement:'Entreprise',datePrestation:'2026-06-20',heureDebut:'19:00',heureFin:'00:00',adresse:'Hôtel Le Récif, L\'Hermitage',lieu:'Hôtel Le Récif',formule:'signature',prestataire:'Fabien',montant:990,status:'acompte',notes:'Soirée annuelle, 120 invités. Animateur dédié demandé.',options:[{id:uid(),nom:'Heure supplémentaire',prix:90},{id:uid(),nom:'Machine à fumée',prix:60}]}),
-    c({prenom:'Sarah',nom:'Benali',telephone:'06 77 90 11 22',email:'sarah.benali@gmail.com',typeEvenement:'Anniversaire',datePrestation:'2026-06-28',heureDebut:'20:00',heureFin:'22:00',adresse:'12 rue des Lataniers, Saint-Paul',lieu:'Salle des Lataniers',formule:'essentiel',prestataire:'Kevin Obscur',montant:290,status:'devis'}),
-    c({prenom:'Maxime',nom:'Hoarau',telephone:'06 33 22 11 00',email:'maxime.hoarau@gmail.com',typeEvenement:'Mariage',datePrestation:'2026-07-11',heureDebut:'17:30',heureFin:'22:30',adresse:'Plage de Boucan Canot',lieu:'Boucan Canot',formule:'experience',prestataire:'Fabien',montant:490,status:'attente'}),
-    c({prenom:'Léa',nom:'Grondin',telephone:'06 45 67 89 01',email:'lea.grondin@gmail.com',typeEvenement:'Séminaire',datePrestation:'2026-07-25',heureDebut:'14:00',heureFin:'18:00',adresse:'Centre de congrès, Saint-Denis',lieu:'Centre de congrès',formule:'signature',prestataire:'Kevin Obscur',montant:990,status:'confirme'}),
-    c({prenom:'Antoine',nom:'Payet',telephone:'06 90 80 70 60',email:'antoine.payet@gmail.com',typeEvenement:'Soirée privée',datePrestation:'2026-05-30',heureDebut:'21:00',heureFin:'23:00',adresse:'Villa Étang Salé',lieu:'Villa privée',formule:'experience',prestataire:'Fabien',montant:490,status:'termine'}),
-    c({prenom:'Inès',nom:'Vidot',telephone:'06 11 22 33 44',email:'ines.vidot@gmail.com',typeEvenement:'Anniversaire',datePrestation:'2026-08-09',heureDebut:'19:30',heureFin:'21:30',adresse:'',lieu:'',formule:'essentiel',prestataire:'',montant:290,status:'demande'})
-  ];
-}
+/* ---------- base vierge (aucune donnée de démonstration) ---------- */
+function seed(){ return []; }
 
-/* ---------- persistence ---------- */
-async function load(){
+/* ---------- persistence (mode LOCAL) ---------- */
+async function loadLocal(){
   const cs=await store.get(K_CLIENTS);
-  state.clients = cs ? JSON.parse(cs) : seed();
+  state.clients = cs ? JSON.parse(cs) : [];
   const ps=await store.get(K_PREST);
-  state.prestataires = ps ? JSON.parse(ps) : [{id:uid(),token:genToken(),nom:'Kevin Obscur',role:'Vidéo Booth 360 · Animation'},{id:uid(),token:genToken(),nom:'Fabien',role:'Vidéo Booth 360 · Montage'}];
-  // backfill: garantir token + options sur les données existantes
+  state.prestataires = ps ? JSON.parse(ps) : [];
+  // backfill: garantir token + options sur d'éventuelles données existantes
   let cDirty=false, pDirty=false;
   state.clients.forEach(c=>{ if(!c.token){c.token=genToken();cDirty=true;} if(!Array.isArray(c.options)){c.options=[];cDirty=true;} });
   state.prestataires.forEach(p=>{ if(!p.token){p.token=genToken();pDirty=true;} });
-  if(!cs||cDirty) await store.set(K_CLIENTS, JSON.stringify(state.clients));
-  if(!ps||pDirty) await store.set(K_PREST, JSON.stringify(state.prestataires));
-  const tm=await store.get(K_TMPL);
-  state.templates = tm ? JSON.parse(tm) : DEFAULT_TMPL;
+  if(cDirty) await localSaveClients();
+  if(pDirty) await localSavePrest();
 }
-const saveClients=()=>store.set(K_CLIENTS,JSON.stringify(state.clients));
-const savePrest=()=>store.set(K_PREST,JSON.stringify(state.prestataires));
 const saveTmpl=()=>store.set(K_TMPL,JSON.stringify(state.templates));
 
 /* ---------- derived ---------- */
@@ -538,13 +578,28 @@ function prestByToken(t){return state.prestataires.find(p=>p.token===t);}
    LOGIN
 ========================================================= */
 const ADMIN_ID='KevinObscur', ADMIN_PW='KevinObscur974';
-function doAdminLogin(){
+async function doAdminLogin(){
   const u=($('#admin-user').value||'').trim();
   const p=($('#admin-pass').value||'').trim();
-  if(u===ADMIN_ID && p===ADMIN_PW){ state.user={role:'admin',name:'Kevin Obscur'}; enterApp(); }
-  else $('#admin-err').textContent='Identifiant ou mot de passe incorrect.';
+  const errEl=$('#admin-err');
+  if(u!==ADMIN_ID){ errEl.textContent='Identifiant ou mot de passe incorrect.'; return; }
+  if(SUPA()){
+    errEl.textContent='Connexion…';
+    try{
+      const {data,error}=await supa.rpc('admin_data',{p_pw:p});
+      if(error||data===null){ errEl.textContent='Identifiant ou mot de passe incorrect.'; return; }
+      state.adminPw=p;
+      state.clients=(data&&data.clients)||[];
+      state.prestataires=(data&&data.prestataires)||[];
+      state.clients.forEach(c=>{ if(!Array.isArray(c.options))c.options=[]; if(!c.documents)c.documents={}; });
+      state.user={role:'admin',name:'Kevin Obscur'}; errEl.textContent=''; enterApp();
+    }catch(e){ errEl.textContent='Base injoignable. Vérifiez la configuration Supabase.'; console.error(e); }
+    return;
+  }
+  if(p===ADMIN_PW){ state.user={role:'admin',name:'Kevin Obscur'}; enterApp(); }
+  else errEl.textContent='Identifiant ou mot de passe incorrect.';
 }
-function logout(){ state.user=null; state.route='dashboard';
+function logout(){ state.user=null; state.adminPw=null; state.route='dashboard';
   $('#app').style.display='none'; $('#login').style.display='flex';
   const u=$('#admin-user'); if(u)u.value=''; $('#admin-pass').value=''; $('#admin-err').textContent='';
 }
@@ -552,7 +607,7 @@ function enterApp(){
   $('#public').innerHTML=''; $('#public').style.display='none';
   $('#login').style.display='none'; $('#app').style.display='block';
   $('#side-who').textContent=state.user.name;
-  buildNav(); render();
+  buildNav(); render(); refreshDbBadge();
 }
 
 /* =========================================================
@@ -591,7 +646,7 @@ function render(){
     case 'pipeline': topAction(`<button class="btn" onclick="App.openClient()">${ic(I.plus,16)} Nouveau client</button>`); c.innerHTML=viewPipeline(); bindPipe(); break;
     case 'clients': topAction(`<button class="btn" onclick="App.openClient()">${ic(I.plus,16)} Nouveau client</button>`); c.innerHTML=viewClients(); break;
     case 'planning': c.innerHTML=viewPlanning(); break;
-    case 'prestataires': c.innerHTML=viewPrestataires(); break;
+    case 'prestataires': topAction(`<button class="btn" onclick="App.openPrest()">${ic(I.plus,16)} Nouveau prestataire</button>`); c.innerHTML=viewPrestataires(); break;
     default: c.innerHTML=viewDashboard();
   }
 }
@@ -685,9 +740,10 @@ function bindPipe(){
   document.querySelectorAll('.col').forEach(col=>{
     col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('drop');});
     col.addEventListener('dragleave',()=>col.classList.remove('drop'));
-    col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('drop');
+    col.addEventListener('drop',async e=>{e.preventDefault();col.classList.remove('drop');
       if(!dragId)return; const c=findClient(dragId); const st=col.dataset.stage;
-      if(c&&c.status!==st){c.status=st;saveClients();render();bindPipe?.();toast(`${c.prenom} → ${stageOf(st).label}`);}
+      if(c&&c.status!==st){c.status=st;render();bindPipe?.();toast(`${c.prenom} → ${stageOf(st).label}`);
+        try{await dbSaveClient(c);}catch(err){toast('Erreur d\'enregistrement');console.error(err);} }
     });
   });
 }
@@ -836,33 +892,38 @@ function getForm(){
     adresse:g('adresse'),lieu:g('lieu'),formule:g('formule'),prestataire:g('prestataire'),
     montant:Number(g('montant')||0),status:g('status'),notes:g('notes')};
 }
-function saveClient(id){
+async function saveClient(id){
   const data=getForm();
   if(!data.prenom&&!data.nom){toast('Indiquez au moins un nom.');return;}
   // options nettoyées (on ignore les lignes totalement vides)
   data.options=state.editOptions
     .filter(o=>(o.nom&&o.nom.trim())||Number(o.prix)>0)
     .map(o=>({id:o.id||uid(),nom:(o.nom||'').trim(),prix:Number(o.prix||0)}));
-  if(id){ const c=findClient(id); Object.assign(c,data); }
-  else { state.clients.push(Object.assign({id:uid(),token:genToken(),documents:{},createdAt:Date.now()},data)); }
-  saveClients(); closeModal(); render(); if(state.route==='pipeline')bindPipe(); toast('Fiche enregistrée ✓');
+  let c;
+  if(id){ c=findClient(id); Object.assign(c,data); }
+  else { c=Object.assign({id:uid(),token:genToken(),documents:{},createdAt:Date.now()},data); state.clients.push(c); }
+  closeModal(); render(); if(state.route==='pipeline')bindPipe();
+  try{ await dbSaveClient(c); toast('Fiche enregistrée ✓'); }catch(err){ toast('Erreur d\'enregistrement (base)'); console.error(err); }
 }
-function deleteClient(id){
+async function deleteClient(id){
   if(!confirm('Supprimer définitivement cette fiche client ?'))return;
-  state.clients=state.clients.filter(c=>c.id!==id); saveClients(); closeModal(); render(); if(state.route==='pipeline')bindPipe(); toast('Fiche supprimée');
+  state.clients=state.clients.filter(c=>c.id!==id); closeModal(); render(); if(state.route==='pipeline')bindPipe();
+  try{ await dbDeleteClient(id); toast('Fiche supprimée'); }catch(err){ toast('Erreur (base)'); console.error(err); }
 }
 function uploadDoc(key,input){
   const file=input.files[0]; if(!file)return;
   const r=new FileReader();
-  r.onload=()=>{ const c=findClient(state.modalClientId);
+  r.onload=async()=>{ const c=findClient(state.modalClientId);
     if(!c){toast('Enregistrez d\'abord la fiche.');return;}
     c.documents=c.documents||{}; c.documents[key]={name:file.name,size:file.size,data:r.result};
-    saveClients(); renderModal(); toast('Document importé ✓'); };
+    renderModal(); toast('Document importé ✓');
+    try{ await dbSaveClient(c); }catch(err){ toast('Erreur (base)'); console.error(err); } };
   r.readAsDataURL(file);
 }
 function downloadDoc(key){ const c=findClient(state.modalClientId); const d=c?.documents?.[key]; if(!d)return;
   const a=document.createElement('a'); a.href=d.data; a.download=d.name; a.click(); }
-function removeDoc(key){ const c=findClient(state.modalClientId); if(c?.documents){delete c.documents[key];saveClients();renderModal();} }
+async function removeDoc(key){ const c=findClient(state.modalClientId); if(c?.documents){delete c.documents[key];renderModal();
+  try{ await dbSaveClient(c); }catch(err){ console.error(err); } } }
 
 /* =========================================================
    PLANNING (calendrier)
@@ -962,10 +1023,64 @@ function calYear(){
 }
 function openMonth(mi){state.calDate=new Date(state.calDate.getFullYear(),mi,1);state.calView='month';render();}
 
+/* ---------- Modal prestataire (CRUD) ---------- */
+function openPrest(id){ state.prestModalId=id||null; renderPrestModal(); }
+function closePrest(){ state.prestModalId=undefined; $('#modal-root').innerHTML=''; }
+function renderPrestModal(){
+  const isNew=!state.prestModalId;
+  const p=isNew?{id:'',token:'',nom:'',role:''}:Object.assign({},state.prestataires.find(x=>x.id===state.prestModalId));
+  const assigned=isNew?0:state.clients.filter(c=>c.prestataire===p.nom).length;
+  const html=`<div class="overlay" onclick="if(event.target===this)App.closePrest()"><div class="modal" style="max-width:460px">
+    <div class="modal-head"><div class="ti"><h2>${isNew?'Nouveau prestataire':esc(p.nom)}</h2>
+      <div class="meta">${isNew?'Ajoutez un membre de l\'équipe':assigned+' mission(s) attribuée(s)'}</div></div>
+      <button class="modal-close" onclick="App.closePrest()">×</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Nom complet</label><input id="pf-nom" value="${esc(p.nom)}" placeholder="Ex. Kevin Obscur"></div>
+      <div class="field"><label>Rôle / spécialité</label><input id="pf-role" value="${esc(p.role)}" placeholder="Ex. Vidéo Booth 360 · Animation"></div>
+      ${isNew?'':`<div class="block-title" style="display:flex;align-items:center;gap:8px">${ic(I.link,14)} Lien privé prestataire</div>
+        <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+          <input readonly value="${esc(linkFor('prestataire',p.token))}" onclick="this.select()" style="flex:1;min-width:190px;font-size:12.5px;color:var(--muted)">
+          <button class="btn neon sm" onclick="App.copyLink('prestataire','${p.token}')">${ic(I.copy,14)} Copier</button></div>
+        <div style="font-size:11.5px;color:var(--muted2);margin-top:7px">Page en lecture seule listant ses prestations attribuées.</div>`}
+    </div>
+    <div class="modal-foot">
+      ${!isNew?`<button class="btn" style="margin-right:auto;background:transparent;border:1px solid rgba(255,107,107,.4);color:#ff8585" onclick="App.deletePrest('${p.id}')">Supprimer</button>`:''}
+      <button class="btn ghost" onclick="App.closePrest()">Annuler</button>
+      <button class="btn" onclick="App.savePrest('${p.id}')">${ic(I.check,16)} Enregistrer</button></div>
+  </div></div>`;
+  $('#modal-root').innerHTML=html;
+}
+async function savePrest(id){
+  const nom=($('#pf-nom').value||'').trim(); const role=($('#pf-role').value||'').trim();
+  if(!nom){toast('Indiquez un nom.');return;}
+  let p, affected=[];
+  if(id){ p=state.prestataires.find(x=>x.id===id); const old=p.nom; p.nom=nom; p.role=role;
+    if(old!==nom){ affected=state.clients.filter(c=>c.prestataire===old); affected.forEach(c=>c.prestataire=nom); }
+  } else { p={id:uid(),token:genToken(),nom,role}; state.prestataires.push(p); }
+  closePrest(); render();
+  try{ await dbSavePrest(p); for(const c of affected) await dbSaveClient(c); toast('Prestataire enregistré ✓'); }
+  catch(err){ toast('Erreur (base)'); console.error(err); }
+}
+async function deletePrest(id){
+  const p=state.prestataires.find(x=>x.id===id); if(!p)return;
+  const affected=state.clients.filter(c=>c.prestataire===p.nom);
+  if(!confirm(`Supprimer ${p.nom} ?`+(affected.length?`\n${affected.length} client(s) passeront en « non assigné ».`:'')))return;
+  state.prestataires=state.prestataires.filter(x=>x.id!==id);
+  affected.forEach(c=>c.prestataire='');
+  closePrest(); render();
+  try{ await dbDeletePrest(id); for(const c of affected) await dbSaveClient(c); toast('Prestataire supprimé'); }
+  catch(err){ toast('Erreur (base)'); console.error(err); }
+}
+
 /* =========================================================
    PRESTATAIRES
 ========================================================= */
 function viewPrestataires(){
+  if(!state.prestataires.length){
+    return `<div class="card" style="padding:40px;text-align:center">
+      <div class="empty" style="padding:0 0 16px">Aucun prestataire pour l'instant.</div>
+      <button class="btn" onclick="App.openPrest()">${ic(I.plus,16)} Ajouter un prestataire</button></div>`;
+  }
   return `<div class="prest-grid">
     ${state.prestataires.map(p=>{
       const miss=state.clients.filter(c=>c.prestataire===p.nom);
@@ -975,7 +1090,8 @@ function viewPrestataires(){
       const ini=p.nom.split(' ').map(x=>x[0]).slice(0,2).join('');
       return `<div class="prest card">
         <div class="ph"><div class="avatar">${esc(ini)}</div>
-          <div><div class="pn">${esc(p.nom)}</div><div class="pr">${esc(p.role||'Prestataire')}</div></div></div>
+          <div style="flex:1"><div class="pn">${esc(p.nom)}</div><div class="pr">${esc(p.role||'Prestataire')}</div></div>
+          <button class="icon-btn" style="width:32px;height:32px" title="Modifier" onclick="App.openPrest('${p.id}')">✎</button></div>
         <div class="pstats">
           <div class="pstat"><b class="gtext">${miss.length}</b><span>missions</span></div>
           <div class="pstat"><b class="gtext">${up.length}</b><span>à venir</span></div>
@@ -1114,9 +1230,8 @@ function renderClientPublic(c){
   </div></div>`;
 }
 
-function renderPrestatairePublic(p){
-  const miss=state.clients.filter(c=>c.prestataire===p.nom)
-    .filter(c=>c.datePrestation).sort((a,b)=>a.datePrestation.localeCompare(b.datePrestation));
+function renderPrestatairePublic(p, missionsInput){
+  const miss=(missionsInput||[]).filter(c=>c.datePrestation).sort((a,b)=>a.datePrestation.localeCompare(b.datePrestation));
   const up=miss.filter(c=>parseD(c.datePrestation)>=stripTime(today())&&c.status!=='termine');
   const card=c=>{const F=FORMULES[c.formule]||{};const s=stageOf(c.status);
     return `<div class="card" style="padding:20px;margin-bottom:14px">
@@ -1153,8 +1268,12 @@ function renderPrestatairePublic(p){
     ${adminBack}
   </div></div>`;
 }
-function pubDownload(token,key){const c=clientByToken(token);const d=c?.documents?.[key];if(!d)return;
-  const a=document.createElement('a');a.href=d.data;a.download=d.name;a.click();}
+async function pubDownload(token,key){
+  let c=clientByToken(token);
+  if(!c) c=await fetchClientPublic(token);
+  const d=c&&c.documents&&c.documents[key]; if(!d)return;
+  const a=document.createElement('a');a.href=d.data;a.download=d.name;a.click();
+}
 
 /* =========================================================
    ROUTEUR (liens privés vs administration)
@@ -1169,23 +1288,40 @@ function invalidLink(){
     ${PUB_HEADER}<div class="card" style="padding:34px"><h2 style="font-family:'Sora'">Lien invalide</h2>
     <p style="color:var(--muted);margin-top:8px">Ce lien privé n'existe pas ou a été révoqué. Contactez Le Petit Booth.</p></div>${adminBack}</div>`);
 }
-function route(){
+async function route(){
   const m=(location.hash||'').match(/^#\/(client|prestataire)\/(.+)$/);
   if(m){
-    if(m[1]==='client'){ const c=clientByToken(m[2]); return c?showPublic(renderClientPublic(c)):invalidLink(); }
-    const p=prestByToken(m[2]); return p?showPublic(renderPrestatairePublic(p)):invalidLink();
+    if(m[1]==='client'){ const c=await fetchClientPublic(m[2]); return c?showPublic(renderClientPublic(c)):invalidLink(); }
+    const d=await fetchPrestPublic(m[2]); return (d&&d.prestataire)?showPublic(renderPrestatairePublic(d.prestataire, d.missions||[])):invalidLink();
   }
   // pas de token → administration
   $('#public').style.display='none'; $('#public').innerHTML='';
-  if(state.user){ enterApp(); } else { $('#app').style.display='none'; $('#login').style.display='flex'; }
+  if(state.user){ enterApp(); } else { $('#app').style.display='none'; $('#login').style.display='flex'; refreshDbBadge(); }
 }
 function openPublic(kind,token){ location.hash='#/'+kind+'/'+token; }
 function backToAdmin(){ if(location.hash){ history.pushState('', document.title, location.pathname+location.search); } route(); }
 
+/* ---------- indicateur de base de données ---------- */
+function refreshDbBadge(){
+  const html = SUPA()
+    ? `<span style="color:var(--c-confirme)">●</span> Base : Supabase (multi-appareils)`
+    : `<span style="color:var(--c-devis)">●</span> Base : Locale (cet appareil)`;
+  const el=$('#db-badge'); if(el) el.innerHTML = SUPA()? html : html+` — <button class="linklike" style="font-size:inherit" onclick="App.dbHelp()">configurer Supabase</button>`;
+  const el2=$('#db-badge-app'); if(el2) el2.innerHTML = html;
+}
+function dbHelp(){
+  alert("Pour activer la synchronisation multi-appareils (Supabase) :\n\n1. Créez un projet gratuit sur supabase.com\n2. Dans le fichier de l'application, remplissez SUPABASE_URL et SUPABASE_ANON_KEY (en haut du script)\n3. Dans Supabase → SQL Editor, exécutez le fichier « supabase-setup.sql » fourni\n4. Rechargez la page : le bandeau passera au vert.\n\nTant que ce n'est pas fait, l'app fonctionne en local sur cet appareil.");
+}
+
 /* =========================================================
    INIT
 ========================================================= */
-async function init(){ await load(); route(); }
+async function init(){
+  initSupa();
+  if(!SUPA()){ await loadLocal(); }   // Supabase : les données admin sont chargées à la connexion
+  await route();
+  refreshDbBadge();
+}
 window.addEventListener('hashchange', route);
 init();
 
@@ -1193,9 +1329,10 @@ init();
 return {doAdminLogin,logout,go,toggleNav,
   openClient,closeModal,saveClient,deleteClient,onFormule,uploadDoc,downloadDoc,removeDoc,
   optAdd,optRemove,optName,optPrice,recalcTotal,
+  openPrest,closePrest,savePrest,deletePrest,
   pipeSearch,listSearch,
   setCalView,calNav,calToday,openMonth,
-  copyLink,openPublic,backToAdmin,pubDownload};
+  copyLink,openPublic,backToAdmin,pubDownload,dbHelp};
 })();
 </script>
 </body>

@@ -1,0 +1,81 @@
+LE PETIT BOOTH — Mettre l'application "en ligne" avec Supabase
+==============================================================
+
+Pourquoi ?  Pour que TOUT s'enregistre dans une vraie base, et que les liens
+client/prestataire fonctionnent depuis N'IMPORTE QUEL appareil (pas seulement
+le vôtre). Sans cette étape, l'app marche en LOCAL (données sur votre appareil).
+
+Vous n'avez RIEN à coder. Environ 10 minutes.
+
+--------------------------------------------------------------------
+ÉTAPE 1 — Créer un projet Supabase (gratuit)
+--------------------------------------------------------------------
+1. Allez sur https://supabase.com → "Start your project" → créez un compte.
+2. "New project" : donnez un nom (ex. lepetitbooth), choisissez une région
+   proche (Europe), définissez un mot de passe de base de données (gardez-le),
+   puis "Create new project". Attendez ~2 min que le projet démarre.
+
+--------------------------------------------------------------------
+ÉTAPE 2 — Créer les tables et les fonctions
+--------------------------------------------------------------------
+3. Dans le menu de gauche : "SQL Editor" → "New query".
+4. Ouvrez le fichier "supabase-setup.sql" (fourni), copiez TOUT son contenu,
+   collez-le dans l'éditeur, puis cliquez "Run".
+   (Optionnel : à la ligne "_admin_pw", vous pouvez changer le mot de passe
+    administrateur. Par défaut : KevinObscur974.)
+
+--------------------------------------------------------------------
+ÉTAPE 3 — Récupérer vos 2 identifiants
+--------------------------------------------------------------------
+5. Menu de gauche : "Project Settings" (roue crantée) → "API".
+6. Copiez :
+     • "Project URL"        (ex. https://abcd1234.supabase.co)
+     • "anon public" key    (une longue chaîne commençant par eyJ...)
+   Ces 2 valeurs sont PUBLIQUES : elles peuvent rester dans le fichier.
+
+--------------------------------------------------------------------
+ÉTAPE 4 — Renseigner l'application
+--------------------------------------------------------------------
+7. Ouvrez "lepetitbooth-crm.html" avec un éditeur de texte (Bloc-notes,
+   TextEdit, VS Code...). Tout en haut du <script>, trouvez :
+
+       const SUPABASE_URL      = '';
+       const SUPABASE_ANON_KEY = '';
+
+   Collez vos valeurs entre les guillemets, par exemple :
+
+       const SUPABASE_URL      = 'https://abcd1234.supabase.co';
+       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6...';
+
+8. Enregistrez le fichier.
+
+--------------------------------------------------------------------
+ÉTAPE 5 — Héberger le fichier (pour partager les liens)
+--------------------------------------------------------------------
+Pour que vos clients/prestataires ouvrent leur lien depuis leur téléphone,
+le fichier doit avoir une adresse web. Options simples et gratuites :
+   • Netlify Drop : https://app.netlify.com/drop  (glissez le fichier, c'est en ligne)
+   • Vercel, GitHub Pages, ou l'hébergement de votre site actuel.
+Vos liens ressembleront alors à :
+   https://votre-site.com/lepetitbooth-crm.html#/client/xxxxxxxx
+
+--------------------------------------------------------------------
+VÉRIFICATION
+--------------------------------------------------------------------
+• Rechargez l'application : en bas de l'écran de connexion, le bandeau doit
+  afficher "● Base : Supabase (multi-appareils)" en VERT.
+• Connectez-vous (identifiant KevinObscur + votre mot de passe admin).
+• Créez un prestataire et un client : ils sont maintenant enregistrés dans
+  Supabase. Ouvrez le lien client sur votre téléphone : il s'affiche.
+
+--------------------------------------------------------------------
+SÉCURITÉ (important)
+--------------------------------------------------------------------
+• La clé "anon" est publique : c'est normal et sans risque.
+• Les données ne sont JAMAIS lisibles en bloc : chaque lien client ne montre
+  que le client concerné, chaque lien prestataire que ses missions.
+• L'accès administrateur est protégé par le mot de passe défini dans Supabase
+  (fonction _admin_pw). Pour une sécurité maximale en production, changez-le
+  pour une valeur différente de celle du code, connue de vous seul.
+
+Besoin d'aide pour l'hébergement ou un réglage ? Dites-le moi.
