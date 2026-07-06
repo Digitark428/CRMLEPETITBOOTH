@@ -3,7 +3,8 @@ LE PETIT BOOTH — Mettre l'application "en ligne" avec Supabase
 
 Pourquoi ?  Pour que TOUT s'enregistre dans une vraie base, et que les liens
 client/prestataire fonctionnent depuis N'IMPORTE QUEL appareil (pas seulement
-le vôtre). Sans cette étape, l'app marche en LOCAL (données sur votre appareil).
+le vôtre). L'application fonctionne UNIQUEMENT avec Supabase (aucune sauvegarde locale) :
+cette configuration est donc indispensable et se fait une seule fois.
 
 Vous n'avez RIEN à coder. Environ 10 minutes.
 

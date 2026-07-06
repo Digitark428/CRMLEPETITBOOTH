@@ -1,44 +1,43 @@
-LE PETIT BOOTH — CRM interne (V3)
-=================================
+LE PETIT BOOTH — CRM interne (V4 · 100% Supabase)
+=================================================
 
-CONNEXION ADMINISTRATEUR
+L'application enregistre TOUT dans votre base Supabase (le "carnet central").
+Résultat : où que vous ouvriez l'appli (téléphone, autre téléphone, ordinateur),
+il suffit d'entrer identifiant + mot de passe pour retrouver toutes vos données.
+Il n'y a PLUS de sauvegarde locale : Supabase est la seule base.
+
+CE QU'IL FAUT FAIRE UNE SEULE FOIS (voir GUIDE-SUPABASE.txt)
+  1. Créer un projet Supabase (gratuit).
+  2. Exécuter le fichier « supabase-setup.sql » (SQL Editor de Supabase).
+  3. Récupérer 2 valeurs : Project URL + clé "anon/publishable".
+  4. Coller ces 2 valeurs en haut du fichier lepetitbooth-crm.html :
+        const SUPABASE_URL      = 'https://VOTRE-REF.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJ...';   // ou sb_publishable_...
+  5. Mettre le fichier en ligne (Netlify Drop ou Vercel) pour l'ouvrir partout.
+
+CONNEXION
   Identifiant : KevinObscur
-  Mot de passe : KevinObscur974
-  (en mode Supabase, le mot de passe est celui défini dans supabase-setup.sql)
+  Mot de passe : celui défini dans supabase-setup.sql (par défaut KevinObscur974 ;
+  vous pouvez le changer à la ligne _admin_pw du script SQL).
 
-CE QUI A CHANGÉ EN V3
-  1. BASE VIERGE : aucun client, aucun prestataire de démonstration.
-     Vous saisissez toutes vos données vous-même.
+VÉRIFICATION
+  En bas de l'écran de connexion :
+   • « ● Base connectée » (vert)  → tout est bon.
+   • message orange                → il indique précisément quoi corriger
+     (clés manquantes, fichier non hébergé/hors-ligne, ou SQL non exécuté).
 
-  2. GESTION DES PRESTATAIRES : vous pouvez maintenant créer / modifier /
-     supprimer vos prestataires depuis l'onglet « Prestataires »
-     (bouton « Nouveau prestataire »). Chaque prestataire garde son lien privé.
-     - Renommer un prestataire réattribue automatiquement ses clients.
-     - Le supprimer repasse ses clients en « non assigné ».
+LIENS PRIVÉS (lecture seule, synchronisés en temps réel)
+  Client      : .../lepetitbooth-crm.html#/client/xxxxxxxx
+  Prestataire : .../lepetitbooth-crm.html#/prestataire/xxxxxxxx
 
-  3. BASE DE DONNÉES SUPABASE (synchronisation multi-appareils) :
-     - Par défaut l'app tourne en mode LOCAL (données sur cet appareil) et
-       fonctionne immédiatement.
-     - Un bandeau indique le mode en cours : « Locale » (orange) ou
-       « Supabase » (vert).
-     - Pour activer Supabase : suivez GUIDE-SUPABASE.txt (10 min, sans coder)
-       et exécutez supabase-setup.sql dans votre projet Supabase.
-     - Une fois activé : tout s'enregistre en base et les liens client /
-       prestataire fonctionnent depuis n'importe quel téléphone.
-
-FICHIERS FOURNIS
-  lepetitbooth-crm.html   — l'application (à ouvrir / héberger)
-  supabase-setup.sql      — à exécuter une fois dans Supabase (SQL Editor)
-  GUIDE-SUPABASE.txt      — marche à suivre pas-à-pas pour la mise en ligne
+FICHIERS
+  lepetitbooth-crm.html   — l'application
+  supabase-setup.sql      — à exécuter une fois dans Supabase
+  GUIDE-SUPABASE.txt      — marche à suivre détaillée
   LISEZ-MOI.txt           — ce fichier
 
-RAPPEL DES LIENS PRIVÉS
-  Lien client       : .../lepetitbooth-crm.html#/client/xxxxxxxx
-  Lien prestataire  : .../lepetitbooth-crm.html#/prestataire/xxxxxxxx
-  Pages en lecture seule, mises à jour automatiquement à chaque modification.
-
-NOTE IMPORTANTE
-  Le mode local est testé et fonctionnel. L'intégration Supabase est fournie
-  prête à activer (script + guide + testeur de bandeau). Après avoir branché
-  votre projet, vérifiez que le bandeau passe au vert ; en cas de souci,
-  revenez vers moi avec le message d'erreur affiché.
+IMPORTANT
+  Comme l'app est désormais 100% Supabase, elle a besoin des 2 clés + du SQL
+  pour fonctionner. Tant que ce n'est pas fait, l'écran de connexion l'indique
+  clairement (aucun plantage). Une fois configuré : tout s'enregistre et se
+  synchronise entre tous vos appareils, exactement comme les autres applis.

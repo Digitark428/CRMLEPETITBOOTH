@@ -388,8 +388,9 @@ select option{background:#170d28}
 <div id="modal-root"></div>
 <div id="toast"><span class="tk">✓</span><span id="toast-msg"></span></div>
 
-<!-- Librairie Supabase (utilisée uniquement si SUPABASE_URL/KEY sont renseignés) -->
+<!-- Librairie Supabase (2 CDN pour fiabilité) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.supabase&&window.supabase.createClient||document.write('<scr'+'ipt src="https://unpkg.com/@supabase/supabase-js@2"></scr'+'ipt>');</script>
 <script>
 /* ============================================================
    LE PETIT BOOTH — CRM interne (V1)
@@ -419,44 +420,39 @@ const SUPABASE_URL      = '';   // ex: 'https://xxxxxxxx.supabase.co'
 const SUPABASE_ANON_KEY = '';   // ex: 'eyJhbGciOi...'
 
 let supa=null;
+let supaStatus='local';   // 'local' | 'no-lib' | 'ready'
 const SUPA=()=>!!supa;
+const _url=(SUPABASE_URL||'').trim();
+const _key=(SUPABASE_ANON_KEY||'').trim();
 function initSupa(){
+  if(!_url || !_key){ supaStatus='local'; return; }          // clés non renseignées
+  if(!(window.supabase && window.supabase.createClient)){ supaStatus='no-lib'; return; } // librairie non chargée
   try{
-    if(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase && window.supabase.createClient){
-      supa=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {auth:{persistSession:false}});
-    }
-  }catch(e){ supa=null; console.warn('Supabase init échoué, mode local.',e); }
+    supa=window.supabase.createClient(_url, _key, {auth:{persistSession:false}});
+    supaStatus='ready';
+  }catch(e){ supa=null; supaStatus='no-lib'; console.warn('Supabase init échoué.',e); }
+}
+/* Messages clairs selon l'état de configuration */
+function supaProblemMsg(){
+  if(supaStatus==='local') return "Base non configurée : renseignez SUPABASE_URL et SUPABASE_ANON_KEY en haut du fichier.";
+  if(supaStatus==='no-lib') return "Connexion à la base impossible ici. Ouvrez l'application depuis son adresse en ligne (hébergée), avec internet.";
+  return "";
+}
+function classifyErr(error){
+  const code=(error&&error.code||'')+''; const m=((error&&error.message)||'').toLowerCase();
+  if(code==='P0001' || m.includes('unauthorized')) return 'pw';                 // mot de passe refusé par la fonction
+  if(code==='PGRST202' || m.includes('could not find') || m.includes('function')) return 'nosql'; // SQL non exécuté
+  if(code==='401' || m.includes('api key') || m.includes('invalid') || m.includes('jwt')) return 'key'; // clé invalide
+  return 'other';
 }
 
-/* ---- couche données (Supabase si configuré, sinon local) ---- */
-const localSaveClients=()=>store.set(K_CLIENTS,JSON.stringify(state.clients));
-const localSavePrest=()=>store.set(K_PREST,JSON.stringify(state.prestataires));
-
-async function dbSaveClient(c){
-  if(SUPA()){ const {error}=await supa.rpc('admin_save',{p_pw:state.adminPw,p_kind:'client',p_id:c.id,p_token:c.token,p_payload:c}); if(error)throw error; }
-  else await localSaveClients();
-}
-async function dbDeleteClient(id){
-  if(SUPA()){ const {error}=await supa.rpc('admin_delete',{p_pw:state.adminPw,p_kind:'client',p_id:id}); if(error)throw error; }
-  else await localSaveClients();
-}
-async function dbSavePrest(p){
-  if(SUPA()){ const {error}=await supa.rpc('admin_save',{p_pw:state.adminPw,p_kind:'prestataire',p_id:p.id,p_token:p.token,p_payload:p}); if(error)throw error; }
-  else await localSavePrest();
-}
-async function dbDeletePrest(id){
-  if(SUPA()){ const {error}=await supa.rpc('admin_delete',{p_pw:state.adminPw,p_kind:'prestataire',p_id:id}); if(error)throw error; }
-  else await localSavePrest();
-}
-async function fetchClientPublic(token){
-  if(SUPA()){ const {data,error}=await supa.rpc('client_by_token',{p_token:token}); return (error||!data)?undefined:data; }
-  return clientByToken(token);
-}
-async function fetchPrestPublic(token){
-  if(SUPA()){ const {data,error}=await supa.rpc('prestataire_by_token',{p_token:token}); return (error||!data)?undefined:data; }
-  const p=prestByToken(token); if(!p)return undefined;
-  return {prestataire:p, missions:state.clients.filter(c=>c.prestataire===p.nom)};
-}
+/* ---- couche données : 100% Supabase ---- */
+async function dbSaveClient(c){ const {error}=await supa.rpc('admin_save',{p_pw:state.adminPw,p_kind:'client',p_id:c.id,p_token:c.token,p_payload:c}); if(error)throw error; }
+async function dbDeleteClient(id){ const {error}=await supa.rpc('admin_delete',{p_pw:state.adminPw,p_kind:'client',p_id:id}); if(error)throw error; }
+async function dbSavePrest(p){ const {error}=await supa.rpc('admin_save',{p_pw:state.adminPw,p_kind:'prestataire',p_id:p.id,p_token:p.token,p_payload:p}); if(error)throw error; }
+async function dbDeletePrest(id){ const {error}=await supa.rpc('admin_delete',{p_pw:state.adminPw,p_kind:'prestataire',p_id:id}); if(error)throw error; }
+async function fetchClientPublic(token){ if(!supa)return undefined; const {data,error}=await supa.rpc('client_by_token',{p_token:token}); return (error||!data)?undefined:data; }
+async function fetchPrestPublic(token){ if(!supa)return undefined; const {data,error}=await supa.rpc('prestataire_by_token',{p_token:token}); return (error||!data)?undefined:data; }
 
 /* ---------- catalogue marque ---------- */
 const FORMULES = {
@@ -548,23 +544,8 @@ function copyLink(kind,token){
 function fallbackCopy(text,cb){ const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';
   document.body.appendChild(t);t.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(t);cb&&cb(); }
 
-/* ---------- base vierge (aucune donnée de démonstration) ---------- */
+/* ---------- base vierge (les données viennent de Supabase) ---------- */
 function seed(){ return []; }
-
-/* ---------- persistence (mode LOCAL) ---------- */
-async function loadLocal(){
-  const cs=await store.get(K_CLIENTS);
-  state.clients = cs ? JSON.parse(cs) : [];
-  const ps=await store.get(K_PREST);
-  state.prestataires = ps ? JSON.parse(ps) : [];
-  // backfill: garantir token + options sur d'éventuelles données existantes
-  let cDirty=false, pDirty=false;
-  state.clients.forEach(c=>{ if(!c.token){c.token=genToken();cDirty=true;} if(!Array.isArray(c.options)){c.options=[];cDirty=true;} });
-  state.prestataires.forEach(p=>{ if(!p.token){p.token=genToken();pDirty=true;} });
-  if(cDirty) await localSaveClients();
-  if(pDirty) await localSavePrest();
-}
-const saveTmpl=()=>store.set(K_TMPL,JSON.stringify(state.templates));
 
 /* ---------- derived ---------- */
 const upcoming=()=>state.clients.filter(c=>c.datePrestation&&parseD(c.datePrestation)>=stripTime(today())&&c.status!=='termine')
@@ -577,31 +558,34 @@ function prestByToken(t){return state.prestataires.find(p=>p.token===t);}
 /* =========================================================
    LOGIN
 ========================================================= */
-const ADMIN_ID='KevinObscur', ADMIN_PW='KevinObscur974';
+const ADMIN_ID='KevinObscur';
 async function doAdminLogin(){
   const u=($('#admin-user').value||'').trim();
   const p=($('#admin-pass').value||'').trim();
   const errEl=$('#admin-err');
+  if(!supa){ errEl.textContent=supaProblemMsg(); return; }
   if(u!==ADMIN_ID){ errEl.textContent='Identifiant ou mot de passe incorrect.'; return; }
-  if(SUPA()){
-    errEl.textContent='Connexion…';
-    try{
-      const {data,error}=await supa.rpc('admin_data',{p_pw:p});
-      if(error||data===null){ errEl.textContent='Identifiant ou mot de passe incorrect.'; return; }
-      state.adminPw=p;
-      state.clients=(data&&data.clients)||[];
-      state.prestataires=(data&&data.prestataires)||[];
-      state.clients.forEach(c=>{ if(!Array.isArray(c.options))c.options=[]; if(!c.documents)c.documents={}; });
-      state.user={role:'admin',name:'Kevin Obscur'}; errEl.textContent=''; enterApp();
-    }catch(e){ errEl.textContent='Base injoignable. Vérifiez la configuration Supabase.'; console.error(e); }
-    return;
-  }
-  if(p===ADMIN_PW){ state.user={role:'admin',name:'Kevin Obscur'}; enterApp(); }
-  else errEl.textContent='Identifiant ou mot de passe incorrect.';
+  errEl.textContent='Connexion…';
+  try{
+    const {data,error}=await supa.rpc('admin_data',{p_pw:p});
+    if(error){
+      const kind=classifyErr(error);
+      errEl.textContent = kind==='pw' ? 'Identifiant ou mot de passe incorrect.'
+        : kind==='nosql' ? "Base connectée, mais le script SQL n'est pas exécuté. Lancez supabase-setup.sql dans Supabase."
+        : kind==='key' ? "Clé Supabase refusée. Vérifiez la clé « anon/publishable » et l'URL du projet."
+        : "Erreur : "+(error.message||'inconnue');
+      return;
+    }
+    state.adminPw=p;
+    state.clients=(data&&data.clients)||[];
+    state.prestataires=(data&&data.prestataires)||[];
+    state.clients.forEach(c=>{ if(!Array.isArray(c.options))c.options=[]; if(!c.documents)c.documents={}; });
+    state.user={role:'admin',name:'Kevin Obscur'}; errEl.textContent=''; enterApp();
+  }catch(e){ errEl.textContent="Base injoignable (URL ou connexion internet)."; console.error(e); }
 }
 function logout(){ state.user=null; state.adminPw=null; state.route='dashboard';
   $('#app').style.display='none'; $('#login').style.display='flex';
-  const u=$('#admin-user'); if(u)u.value=''; $('#admin-pass').value=''; $('#admin-err').textContent='';
+  const u=$('#admin-user'); if(u)u.value=''; $('#admin-pass').value=''; $('#admin-err').textContent=''; refreshDbBadge();
 }
 function enterApp(){
   $('#public').innerHTML=''; $('#public').style.display='none';
@@ -1164,7 +1148,7 @@ function viewEmails(){
   </div>`;
 }
 let tmplT;
-function tmplEdit(k,field,v){ state.templates[k][field]=v; clearTimeout(tmplT); tmplT=setTimeout(saveTmpl,400); }
+function tmplEdit(k,field,v){ if(state.templates[k]) state.templates[k][field]=v; }
 
 /* =========================================================
    PAGES PUBLIQUES (accès par lien privé sécurisé)
@@ -1301,16 +1285,16 @@ async function route(){
 function openPublic(kind,token){ location.hash='#/'+kind+'/'+token; }
 function backToAdmin(){ if(location.hash){ history.pushState('', document.title, location.pathname+location.search); } route(); }
 
-/* ---------- indicateur de base de données ---------- */
+/* ---------- indicateur discret d'état de la base ---------- */
 function refreshDbBadge(){
-  const html = SUPA()
-    ? `<span style="color:var(--c-confirme)">●</span> Base : Supabase (multi-appareils)`
-    : `<span style="color:var(--c-devis)">●</span> Base : Locale (cet appareil)`;
-  const el=$('#db-badge'); if(el) el.innerHTML = SUPA()? html : html+` — <button class="linklike" style="font-size:inherit" onclick="App.dbHelp()">configurer Supabase</button>`;
-  const el2=$('#db-badge-app'); if(el2) el2.innerHTML = html;
-}
-function dbHelp(){
-  alert("Pour activer la synchronisation multi-appareils (Supabase) :\n\n1. Créez un projet gratuit sur supabase.com\n2. Dans le fichier de l'application, remplissez SUPABASE_URL et SUPABASE_ANON_KEY (en haut du script)\n3. Dans Supabase → SQL Editor, exécutez le fichier « supabase-setup.sql » fourni\n4. Rechargez la page : le bandeau passera au vert.\n\nTant que ce n'est pas fait, l'app fonctionne en local sur cet appareil.");
+  const el=$('#db-badge');
+  if(el){
+    el.innerHTML = supaStatus==='ready'
+      ? `<span style="color:var(--c-confirme)">●</span> Base connectée`
+      : `<span style="color:#ff8585">⚠️ ${supaProblemMsg()}</span>`;
+  }
+  const el2=$('#db-badge-app');
+  if(el2) el2.innerHTML = supaStatus==='ready' ? `<span style="color:var(--c-confirme)">●</span> Synchronisé (Supabase)` : '';
 }
 
 /* =========================================================
@@ -1318,7 +1302,6 @@ function dbHelp(){
 ========================================================= */
 async function init(){
   initSupa();
-  if(!SUPA()){ await loadLocal(); }   // Supabase : les données admin sont chargées à la connexion
   await route();
   refreshDbBadge();
 }
@@ -1332,7 +1315,7 @@ return {doAdminLogin,logout,go,toggleNav,
   openPrest,closePrest,savePrest,deletePrest,
   pipeSearch,listSearch,
   setCalView,calNav,calToday,openMonth,
-  copyLink,openPublic,backToAdmin,pubDownload,dbHelp};
+  copyLink,openPublic,backToAdmin,pubDownload};
 })();
 </script>
 </body>
