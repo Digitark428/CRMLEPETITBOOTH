@@ -1,43 +1,44 @@
-LE PETIT BOOTH — CRM interne (V4 · 100% Supabase)
-=================================================
+LE PETIT BOOTH — CRM interne (V5)
+=================================
 
-L'application enregistre TOUT dans votre base Supabase (le "carnet central").
-Résultat : où que vous ouvriez l'appli (téléphone, autre téléphone, ordinateur),
-il suffit d'entrer identifiant + mot de passe pour retrouver toutes vos données.
-Il n'y a PLUS de sauvegarde locale : Supabase est la seule base.
-
-CE QU'IL FAUT FAIRE UNE SEULE FOIS (voir GUIDE-SUPABASE.txt)
-  1. Créer un projet Supabase (gratuit).
-  2. Exécuter le fichier « supabase-setup.sql » (SQL Editor de Supabase).
-  3. Récupérer 2 valeurs : Project URL + clé "anon/publishable".
-  4. Coller ces 2 valeurs en haut du fichier lepetitbooth-crm.html :
-        const SUPABASE_URL      = 'https://VOTRE-REF.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJ...';   // ou sb_publishable_...
-  5. Mettre le fichier en ligne (Netlify Drop ou Vercel) pour l'ouvrir partout.
+⚠️ IMPORTANT — À FAIRE UNE FOIS APRÈS CETTE MISE À JOUR
+Le fonctionnement des liens prestataires a évolué. Vous devez RÉ-EXÉCUTER le
+script « supabase-setup.sql » dans Supabase (SQL Editor → coller tout → Run).
+C'est sans risque (il remplace proprement les fonctions existantes) et ça ne
+supprime aucune donnée. Sans ça, les nouveaux montants/horaires prestataires
+ne s'afficheront pas correctement sur leurs liens.
 
 CONNEXION
   Identifiant : KevinObscur
-  Mot de passe : celui défini dans supabase-setup.sql (par défaut KevinObscur974 ;
-  vous pouvez le changer à la ligne _admin_pw du script SQL).
+  Mot de passe : celui défini dans supabase-setup.sql (_admin_pw).
 
-VÉRIFICATION
-  En bas de l'écran de connexion :
-   • « ● Base connectée » (vert)  → tout est bon.
-   • message orange                → il indique précisément quoi corriger
-     (clés manquantes, fichier non hébergé/hors-ligne, ou SQL non exécuté).
+NOUVEAUTÉS V5
+  1. RÉMUNÉRATION PRESTATAIRE (privée)
+     Dans la fiche client, pour chaque prestataire affecté, vous fixez un
+     montant « rémunération » = ce que VOUS lui versez.
+     → Visible uniquement sur le lien du prestataire. Le client ne voit jamais
+       ce montant, et le prestataire ne voit jamais le prix réel facturé.
 
-LIENS PRIVÉS (lecture seule, synchronisés en temps réel)
+  2. PLUSIEURS PRESTATAIRES PAR PRESTATION
+     Dans la fiche client, section « Prestataires affectés », choisissez :
+       • « Un seul prestataire »  → un prestataire + sa rémunération
+       • « Plusieurs prestataires » → plusieurs, chacun avec SES horaires et
+         SA rémunération.
+     Tout se met à jour automatiquement sur la fiche client et sur chaque
+     lien prestataire (chacun voit seulement ses horaires et son montant).
+
+  3. ACOMPTE EN POURCENTAGE
+     Dans la fiche client, champ « Acompte (%) ». Le montant de l'acompte et
+     le reste à régler sont calculés automatiquement et affichés :
+       • dans la fiche client, • sur la carte du pipeline (CRM),
+       • et sur le lien client (acompte + reste à régler).
+
+RAPPEL DES LIENS PRIVÉS (lecture seule, temps réel)
   Client      : .../lepetitbooth-crm.html#/client/xxxxxxxx
   Prestataire : .../lepetitbooth-crm.html#/prestataire/xxxxxxxx
 
 FICHIERS
-  lepetitbooth-crm.html   — l'application
-  supabase-setup.sql      — à exécuter une fois dans Supabase
+  lepetitbooth-crm.html   — l'application (vos clés Supabase sont déjà dedans)
+  supabase-setup.sql      — À RÉ-EXÉCUTER (voir ci-dessus)
   GUIDE-SUPABASE.txt      — marche à suivre détaillée
   LISEZ-MOI.txt           — ce fichier
-
-IMPORTANT
-  Comme l'app est désormais 100% Supabase, elle a besoin des 2 clés + du SQL
-  pour fonctionner. Tant que ce n'est pas fait, l'écran de connexion l'indique
-  clairement (aucun plantage). Une fois configuré : tout s'enregistre et se
-  synchronise entre tous vos appareils, exactement comme les autres applis.

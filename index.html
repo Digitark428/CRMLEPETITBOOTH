@@ -483,7 +483,7 @@ let state={
   clients:[], prestataires:[], templates:DEFAULT_TMPL,
   loginMode:'admin', pipeSearch:'', listSearch:'',
   calView:'month', calDate:new Date(2026,5,6),
-  prestSel:null, modalClientId:null, prestModalId:undefined, editOptions:[]
+  prestSel:null, modalClientId:null, prestModalId:undefined, editOptions:[], editAssign:[], prestMode:'single'
 };
 
 /* ---------- utils ---------- */
@@ -531,6 +531,14 @@ const ic=(p,w=19)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="no
 /* ---------- options & total ---------- */
 const optionsTotal=c=>(c.options||[]).reduce((s,o)=>s+Number(o.prix||0),0);
 const grandTotal=c=>Number(c.montant||0)+optionsTotal(c);
+/* ---------- acompte ---------- */
+const acompteAmt=c=>Math.round(grandTotal(c)*(Number(c.acomptePct)||0)/100);
+const resteAmt=c=>grandTotal(c)-acompteAmt(c);
+/* ---------- affectations prestataires ---------- */
+const assignmentsOf=c=>Array.isArray(c.assignments)?c.assignments:[];
+const clientHasPrest=(c,nom)=>assignmentsOf(c).some(a=>a.nom===nom)||c.prestataire===nom;
+const prestAssignment=(c,nom)=>assignmentsOf(c).find(a=>a.nom===nom)||null;
+function prestNamesDisplay(c){ const n=assignmentsOf(c).map(a=>a.nom).filter(Boolean); return n.length?n.join(', '):(c.prestataire||''); }
 const genToken=()=>uid()+uid()+uid().slice(0,4);
 /* base URL sans hash/query, pour construire les liens privés */
 function baseUrl(){ return location.origin==='null'||!location.origin ? location.href.split('#')[0] : location.origin+location.pathname; }
@@ -709,9 +717,11 @@ function kard(c,s){
   return `<div class="kard" draggable="true" data-id="${c.id}" style="border-left-color:${s.ccol}" onclick="App.openClient('${c.id}')">
     <div class="knm">${esc(c.prenom)} ${esc(c.nom)}</div>
     <div class="ktype">${esc(c.typeEvenement)}${c.datePrestation?' · '+fmtShort(parseD(c.datePrestation)):''}</div>
-    ${c.prestataire?`<div class="kmeta">${ic(I.user,12)} ${esc(c.prestataire)}</div>`:''}
+    ${c.prestataire?`<div class="kmeta">${ic(I.user,12)} ${esc(prestNamesDisplay(c))}</div>`:''}
     <div class="kfoot"><span class="kdate">${esc(FORMULES[c.formule]?.nom||'—')}</span>
       <span class="kamt gtext">${eur(grandTotal(c))}</span></div>
+    ${Number(c.acomptePct)>0?`<div style="margin-top:7px;font-size:11px;color:var(--c-acompte);display:flex;align-items:center;gap:5px">
+      ${ic(I.euro,12)} Acompte ${c.acomptePct}% · ${eur(acompteAmt(c))} <span style="color:var(--muted2)">· reste ${eur(resteAmt(c))}</span></div>`:''}
   </div>`;
 }
 function pipeSearch(v){state.pipeSearch=v;}
@@ -767,9 +777,14 @@ function openClient(id){
   state.modalClientId=id||null;
   const src=id?findClient(id):null;
   state.editOptions=src&&Array.isArray(src.options)?src.options.map(o=>({id:o.id||uid(),nom:o.nom,prix:o.prix})):[];
+  // affectations prestataires (migration depuis l'ancien champ "prestataire")
+  let asg=src&&Array.isArray(src.assignments)?src.assignments.map(a=>({id:a.id||uid(),nom:a.nom||'',heureDebut:a.heureDebut||'',heureFin:a.heureFin||'',montant:a.montant??''})):[];
+  if(!asg.length && src && src.prestataire){ asg=[{id:uid(),nom:src.prestataire,heureDebut:'',heureFin:'',montant:src.prestataireMontant??''}]; }
+  state.editAssign=asg;
+  state.prestMode=(src&&src.prestMode)|| (asg.length>1?'multi':'single');
   renderModal();
 }
-function closeModal(){ state.modalClientId=undefined; state.editOptions=[]; $('#modal-root').innerHTML=''; }
+function closeModal(){ state.modalClientId=undefined; state.editOptions=[]; state.editAssign=[]; $('#modal-root').innerHTML=''; }
 function optListHtml(){
   const rows=state.editOptions.map((o,i)=>`
    <div class="optrow" style="display:flex;gap:9px;align-items:center;margin-bottom:9px">
@@ -780,9 +795,31 @@ function optListHtml(){
    </div>`).join('');
   return rows||`<div style="color:var(--muted2);font-size:12.5px;padding:2px 2px 8px">Aucune option pour l'instant. Ajoutez une ligne librement.</div>`;
 }
+/* ---- affectation prestataires (édition) ---- */
+function prestOptionsHtml(sel){
+  return `<option value="">— Choisir —</option>`+state.prestataires.map(p=>`<option value="${esc(p.nom)}" ${p.nom===sel?'selected':''}>${esc(p.nom)}</option>`).join('');
+}
+function assignListHtml(){
+  const multi=state.prestMode==='multi';
+  if(!state.prestataires.length){
+    return `<div style="color:var(--muted2);font-size:12.5px;padding:2px 2px 8px">Aucun prestataire créé. Ajoutez-en d'abord dans l'onglet « Prestataires ».</div>`;
+  }
+  if(!state.editAssign.length){
+    return `<div style="color:var(--muted2);font-size:12.5px;padding:2px 2px 8px">Aucun prestataire affecté.</div>`;
+  }
+  return state.editAssign.map((a,i)=>`
+   <div class="asgrow" style="display:flex;gap:9px;align-items:center;margin-bottom:9px;flex-wrap:wrap">
+     <select onchange="App.asgName(${i},this.value)" style="flex:1;min-width:150px">${prestOptionsHtml(a.nom)}</select>
+     ${multi?`<input type="time" value="${esc(a.heureDebut)}" title="Début" onchange="App.asgHd(${i},this.value)" style="width:120px">
+       <input type="time" value="${esc(a.heureFin)}" title="Fin" onchange="App.asgHf(${i},this.value)" style="width:120px">`:''}
+     <input type="number" min="0" value="${esc(a.montant)}" placeholder="Rémunération" title="Montant versé au prestataire" oninput="App.asgMontant(${i},this.value)" style="width:130px">
+     <span style="color:var(--muted2);font-size:14px">€</span>
+     ${multi?`<button class="icon-btn" style="width:34px;height:34px;flex-shrink:0" onclick="App.asgRemove(${i})" title="Retirer">×</button>`:''}
+   </div>`).join('');
+}
 function renderModal(){
   const isNew=!state.modalClientId;
-  const c=isNew?{id:'',token:'',prenom:'',nom:'',telephone:'',email:'',typeEvenement:'Mariage',datePrestation:'',heureDebut:'',heureFin:'',adresse:'',lieu:'',formule:'experience',prestataire:'',montant:490,status:'demande',documents:{},notes:'',options:[]}:Object.assign({},findClient(state.modalClientId));
+  const c=isNew?{id:'',token:'',prenom:'',nom:'',telephone:'',email:'',typeEvenement:'Mariage',datePrestation:'',heureDebut:'',heureFin:'',adresse:'',lieu:'',formule:'experience',prestataire:'',montant:490,status:'demande',documents:{},notes:'',options:[],assignments:[],acomptePct:0}:Object.assign({},findClient(state.modalClientId));
   const s=stageOf(c.status);
   const f=(label,key,type='text',ph='')=>`<div class="field"><label>${label}</label>
     <input id="cf-${key}" type="${type}" value="${esc(c[key])}" placeholder="${ph}"></div>`;
@@ -822,11 +859,19 @@ function renderModal(){
       <div class="form-grid">
         <div class="field"><label>Formule choisie</label><select id="cf-formule" onchange="App.onFormule(this.value)">
           ${opts(Object.entries(FORMULES),c.formule,e=>e[0],e=>e[1].nom+' — '+e[1].prix+' €')}</select></div>
-        <div class="field"><label>Prestataire assigné</label><select id="cf-prestataire">
-          <option value="">— Non assigné —</option>${opts(state.prestataires,c.prestataire,p=>p.nom,p=>p.nom)}</select></div>
         <div class="field"><label>Montant formule (€)</label><input id="cf-montant" type="number" value="${esc(c.montant)}" oninput="App.recalcTotal()"></div>
         <div class="field"><label>Étape du pipeline</label><select id="cf-status">${opts(STAGES,c.status,x=>x.id,x=>x.label)}</select></div>
+        <div class="field"><label>Acompte (%)</label><input id="cf-acomptePct" type="number" min="0" max="100" value="${esc(c.acomptePct||0)}" placeholder="ex. 30" oninput="App.recalcTotal()"></div>
       </div>
+
+      <div class="block-title" style="display:flex;align-items:center;gap:8px">${ic(I.team,14)} Prestataires affectés</div>
+      <div class="seg" style="margin-bottom:12px;display:inline-flex">
+        <button type="button" id="pm-single" class="${state.prestMode!=='multi'?'active':''}" onclick="App.setPrestMode('single')">Un seul prestataire</button>
+        <button type="button" id="pm-multi" class="${state.prestMode==='multi'?'active':''}" onclick="App.setPrestMode('multi')">Plusieurs prestataires</button>
+      </div>
+      <div id="assign-list">${assignListHtml()}</div>
+      <button class="btn ghost sm" id="asg-add" onclick="App.asgAdd()" style="margin-top:2px;${state.prestMode==='multi'?'':'display:none'}">${ic(I.plus,15)} Ajouter un prestataire</button>
+      <div style="font-size:11.5px;color:var(--muted2);margin-top:8px">La « rémunération » est le montant que VOUS versez au prestataire. Elle n'apparaît que sur le lien du prestataire, jamais côté client.</div>
 
       <div class="block-title" style="display:flex;align-items:center;gap:8px">${ic(I.tag,14)} Options supplémentaires</div>
       <div id="opt-list">${optListHtml()}</div>
@@ -858,31 +903,60 @@ function renderModal(){
   recalcTotal();
 }
 function onFormule(v){ const m=$('#cf-montant'); if(m && FORMULES[v]) m.value=FORMULES[v].prix; recalcTotal(); }
-/* ---- options: édition en direct ---- */
+/* ---- total + acompte en direct ---- */
 function recalcTotal(){
   const base=Number(($('#cf-montant')?.value)||0);
   const opt=state.editOptions.reduce((s,o)=>s+Number(o.prix||0),0);
+  const total=base+opt;
+  const pct=Math.max(0,Math.min(100,Number(($('#cf-acomptePct')?.value)||0)));
+  const ac=Math.round(total*pct/100);
   const el=$('#opt-total'); if(!el)return;
-  el.innerHTML=`Formule : <b style="color:var(--text)">${eur(base)}</b> &nbsp;·&nbsp; Options : <b style="color:var(--text)">${eur(opt)}</b> &nbsp;·&nbsp; <span class="gtext" style="font-family:'Sora';font-weight:800;font-size:15px">Total : ${eur(base+opt)}</span>`;
+  el.innerHTML=`Formule : <b style="color:var(--text)">${eur(base)}</b> &nbsp;·&nbsp; Options : <b style="color:var(--text)">${eur(opt)}</b> &nbsp;·&nbsp; <span class="gtext" style="font-family:'Sora';font-weight:800;font-size:15px">Total : ${eur(total)}</span>`
+    + (pct>0?`<div style="margin-top:8px;color:var(--muted)">Acompte ${pct}% : <b style="color:var(--c-acompte)">${eur(ac)}</b> &nbsp;·&nbsp; Reste à régler : <b style="color:var(--text)">${eur(total-ac)}</b></div>`:'');
 }
 function optAdd(){ state.editOptions.push({id:uid(),nom:'',prix:''}); $('#opt-list').innerHTML=optListHtml(); recalcTotal(); }
 function optRemove(i){ state.editOptions.splice(i,1); $('#opt-list').innerHTML=optListHtml(); recalcTotal(); }
 function optName(i,v){ if(state.editOptions[i]) state.editOptions[i].nom=v; }
 function optPrice(i,v){ if(state.editOptions[i]) state.editOptions[i].prix=v; recalcTotal(); }
+/* ---- affectation prestataires ---- */
+function refreshAssign(){ const el=$('#assign-list'); if(el) el.innerHTML=assignListHtml();
+  const add=$('#asg-add'); if(add) add.style.display=state.prestMode==='multi'?'':'none'; }
+function setPrestMode(m){
+  state.prestMode=m;
+  if(m==='single'){ state.editAssign=state.editAssign.slice(0,1); if(!state.editAssign.length) state.editAssign=[{id:uid(),nom:'',heureDebut:'',heureFin:'',montant:''}]; }
+  else if(!state.editAssign.length){ state.editAssign=[{id:uid(),nom:'',heureDebut:'',heureFin:'',montant:''}]; }
+  $('#pm-single').classList.toggle('active',m==='single');
+  $('#pm-multi').classList.toggle('active',m==='multi');
+  refreshAssign();
+}
+function asgAdd(){ state.editAssign.push({id:uid(),nom:'',heureDebut:'',heureFin:'',montant:''}); refreshAssign(); }
+function asgRemove(i){ state.editAssign.splice(i,1); refreshAssign(); }
+function asgName(i,v){ if(state.editAssign[i]) state.editAssign[i].nom=v; }
+function asgHd(i,v){ if(state.editAssign[i]) state.editAssign[i].heureDebut=v; }
+function asgHf(i,v){ if(state.editAssign[i]) state.editAssign[i].heureFin=v; }
+function asgMontant(i,v){ if(state.editAssign[i]) state.editAssign[i].montant=v; }
 function getForm(){
   const g=k=>($('#cf-'+k)?.value??'');
   return {prenom:g('prenom'),nom:g('nom'),telephone:g('telephone'),email:g('email'),
     typeEvenement:g('typeEvenement'),datePrestation:g('datePrestation'),heureDebut:g('heureDebut'),heureFin:g('heureFin'),
-    adresse:g('adresse'),lieu:g('lieu'),formule:g('formule'),prestataire:g('prestataire'),
-    montant:Number(g('montant')||0),status:g('status'),notes:g('notes')};
+    adresse:g('adresse'),lieu:g('lieu'),formule:g('formule'),
+    montant:Number(g('montant')||0),status:g('status'),notes:g('notes'),
+    acomptePct:Math.max(0,Math.min(100,Number(g('acomptePct')||0)))};
 }
 async function saveClient(id){
   const data=getForm();
   if(!data.prenom&&!data.nom){toast('Indiquez au moins un nom.');return;}
-  // options nettoyées (on ignore les lignes totalement vides)
+  // options nettoyées
   data.options=state.editOptions
     .filter(o=>(o.nom&&o.nom.trim())||Number(o.prix)>0)
     .map(o=>({id:o.id||uid(),nom:(o.nom||'').trim(),prix:Number(o.prix||0)}));
+  // affectations prestataires nettoyées (on garde celles avec un prestataire choisi)
+  let asg=(state.prestMode==='single'?state.editAssign.slice(0,1):state.editAssign)
+    .filter(a=>a.nom&&a.nom.trim())
+    .map(a=>({id:a.id||uid(),nom:a.nom.trim(),heureDebut:a.heureDebut||'',heureFin:a.heureFin||'',montant:Number(a.montant||0)}));
+  data.assignments=asg;
+  data.prestMode=state.prestMode;
+  data.prestataire=asg.map(a=>a.nom).join(', ');   // champ d'affichage (compat calendrier/planning)
   let c;
   if(id){ c=findClient(id); Object.assign(c,data); }
   else { c=Object.assign({id:uid(),token:genToken(),documents:{},createdAt:Date.now()},data); state.clients.push(c); }
@@ -1013,7 +1087,7 @@ function closePrest(){ state.prestModalId=undefined; $('#modal-root').innerHTML=
 function renderPrestModal(){
   const isNew=!state.prestModalId;
   const p=isNew?{id:'',token:'',nom:'',role:''}:Object.assign({},state.prestataires.find(x=>x.id===state.prestModalId));
-  const assigned=isNew?0:state.clients.filter(c=>c.prestataire===p.nom).length;
+  const assigned=isNew?0:state.clients.filter(c=>clientHasPrest(c,p.nom)).length;
   const html=`<div class="overlay" onclick="if(event.target===this)App.closePrest()"><div class="modal" style="max-width:460px">
     <div class="modal-head"><div class="ti"><h2>${isNew?'Nouveau prestataire':esc(p.nom)}</h2>
       <div class="meta">${isNew?'Ajoutez un membre de l\'équipe':assigned+' mission(s) attribuée(s)'}</div></div>
@@ -1039,7 +1113,8 @@ async function savePrest(id){
   if(!nom){toast('Indiquez un nom.');return;}
   let p, affected=[];
   if(id){ p=state.prestataires.find(x=>x.id===id); const old=p.nom; p.nom=nom; p.role=role;
-    if(old!==nom){ affected=state.clients.filter(c=>c.prestataire===old); affected.forEach(c=>c.prestataire=nom); }
+    if(old!==nom){ affected=state.clients.filter(c=>clientHasPrest(c,old));
+      affected.forEach(c=>{ assignmentsOf(c).forEach(a=>{ if(a.nom===old)a.nom=nom; }); c.prestataire=prestNamesDisplay(c); }); }
   } else { p={id:uid(),token:genToken(),nom,role}; state.prestataires.push(p); }
   closePrest(); render();
   try{ await dbSavePrest(p); for(const c of affected) await dbSaveClient(c); toast('Prestataire enregistré ✓'); }
@@ -1047,10 +1122,10 @@ async function savePrest(id){
 }
 async function deletePrest(id){
   const p=state.prestataires.find(x=>x.id===id); if(!p)return;
-  const affected=state.clients.filter(c=>c.prestataire===p.nom);
-  if(!confirm(`Supprimer ${p.nom} ?`+(affected.length?`\n${affected.length} client(s) passeront en « non assigné ».`:'')))return;
+  const affected=state.clients.filter(c=>clientHasPrest(c,p.nom));
+  if(!confirm(`Supprimer ${p.nom} ?`+(affected.length?`\n${affected.length} client(s) : ce prestataire sera retiré de leur affectation.`:'')))return;
   state.prestataires=state.prestataires.filter(x=>x.id!==id);
-  affected.forEach(c=>c.prestataire='');
+  affected.forEach(c=>{ c.assignments=assignmentsOf(c).filter(a=>a.nom!==p.nom); c.prestataire=prestNamesDisplay(c); });
   closePrest(); render();
   try{ await dbDeletePrest(id); for(const c of affected) await dbSaveClient(c); toast('Prestataire supprimé'); }
   catch(err){ toast('Erreur (base)'); console.error(err); }
@@ -1067,7 +1142,7 @@ function viewPrestataires(){
   }
   return `<div class="prest-grid">
     ${state.prestataires.map(p=>{
-      const miss=state.clients.filter(c=>c.prestataire===p.nom);
+      const miss=state.clients.filter(c=>clientHasPrest(c,p.nom));
       const up=miss.filter(c=>c.datePrestation&&parseD(c.datePrestation)>=stripTime(today())&&c.status!=='termine')
         .sort((a,b)=>a.datePrestation.localeCompare(b.datePrestation));
       const done=miss.filter(c=>c.status==='termine').length;
@@ -1082,12 +1157,14 @@ function viewPrestataires(){
           <div class="pstat"><b class="gtext">${done}</b><span>terminées</span></div>
         </div>
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">Prochaines missions</div>
-        ${up.length?up.slice(0,5).map(c=>{const s=stageOf(c.status);return `
+        ${up.length?up.slice(0,5).map(c=>{const s=stageOf(c.status);const a=prestAssignment(c,p.nom);
+          const hd=(a&&a.heureDebut)||c.heureDebut||''; const rem=a?Number(a.montant||0):0;
+          return `
           <div class="mini-ev" style="cursor:pointer" onclick="App.openClient('${c.id}')">
             <span class="dot" style="color:${s.ccol};width:8px;height:8px"></span>
             <div><b>${esc(c.prenom)} ${esc(c.nom)}</b> · ${esc(c.typeEvenement)}<br>
-            <span style="color:var(--muted2);font-size:11px">${esc(c.lieu||'Lieu à définir')}</span></div>
-            <div class="md">${fmtShort(parseD(c.datePrestation))}<br>${esc(c.heureDebut||'')}</div>
+            <span style="color:var(--muted2);font-size:11px">${esc(c.lieu||'Lieu à définir')}${rem>0?' · rému. '+eur(rem):''}</span></div>
+            <div class="md">${fmtShort(parseD(c.datePrestation))}<br>${esc(hd)}</div>
           </div>`;}).join(''):`<div class="empty" style="padding:16px">Aucune mission à venir.</div>`}
         <div style="border-top:1px solid var(--border);margin-top:14px;padding-top:13px">
           <div style="font-size:11.5px;color:var(--muted2);margin-bottom:8px;display:flex;align-items:center;gap:6px">${ic(I.link,13)} Lien privé (lecture seule)</div>
@@ -1192,8 +1269,10 @@ function renderClientPublic(c){
       ${tile(I.clock,'Horaires',(c.heureDebut||'—')+(c.heureFin?' – '+c.heureFin:''))}
       ${tile(I.pin,'Lieu',esc(c.lieu||c.adresse||'À confirmer'))}
       ${tile(I.ticket,'Formule',esc(F.nom||'—'))}
-      ${tile(I.user,'Votre prestataire',esc(c.prestataire||'En cours d\'attribution'))}
+      ${tile(I.user, assignmentsOf(c).length>1?'Vos prestataires':'Votre prestataire', esc(prestNamesDisplay(c)||'En cours d\'attribution'))}
       ${tile(I.euro,'Montant total',eur(grandTotal(c)))}
+      ${Number(c.acomptePct)>0?tile(I.euro,'Acompte ('+c.acomptePct+'%)',eur(acompteAmt(c))):''}
+      ${Number(c.acomptePct)>0?tile(I.euro,'Reste à régler',eur(resteAmt(c))):''}
     </div>
     ${F.desc?`<div class="card" style="padding:20px;margin-bottom:18px;text-align:center;color:var(--muted)">
       <b class="gold" style="font-family:'Sora';font-size:16px">${esc(F.nom)}</b><br>${esc(F.desc)}</div>`:''}
@@ -1217,22 +1296,21 @@ function renderClientPublic(c){
 function renderPrestatairePublic(p, missionsInput){
   const miss=(missionsInput||[]).filter(c=>c.datePrestation).sort((a,b)=>a.datePrestation.localeCompare(b.datePrestation));
   const up=miss.filter(c=>parseD(c.datePrestation)>=stripTime(today())&&c.status!=='termine');
-  const card=c=>{const F=FORMULES[c.formule]||{};const s=stageOf(c.status);
+  const card=c=>{const s=stageOf(c.status||'confirme');
+    const rem=Number(c.montant||0);
     return `<div class="card" style="padding:20px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div><div style="font-family:'Sora';font-weight:700;font-size:17px">${esc(c.prenom)} ${esc(c.nom)}</div>
-          <div style="color:var(--muted2);font-size:12.5px;margin-top:2px">${esc(c.typeEvenement)} · ${esc(F.nom||'—')}</div></div>
+          <div style="color:var(--muted2);font-size:12.5px;margin-top:2px">${esc(c.typeEvenement||'')}</div></div>
         <span class="badge" style="color:${s.ccol};border-color:${s.ccol}40"><span class="d"></span>${fmtShort(parseD(c.datePrestation))}</span>
       </div>
       <div class="info-grid" style="margin:16px 0 4px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-        <div class="info-tile" style="background:rgba(12,7,22,.4)"><div class="il">${ic(I.clock,14)} Horaires</div><div class="iv" style="font-size:16px">${esc(c.heureDebut||'—')}${c.heureFin?' – '+esc(c.heureFin):''}</div></div>
+        <div class="info-tile" style="background:rgba(12,7,22,.4)"><div class="il">${ic(I.clock,14)} Vos horaires</div><div class="iv" style="font-size:16px">${esc(c.heureDebut||'—')}${c.heureFin?' – '+esc(c.heureFin):''}</div></div>
         <div class="info-tile" style="background:rgba(12,7,22,.4)"><div class="il">${ic(I.pin,14)} Lieu</div><div class="iv" style="font-size:15px">${esc(c.lieu||'À confirmer')}</div></div>
-        <div class="info-tile" style="background:rgba(12,7,22,.4)"><div class="il">${ic(I.euro,14)} Montant</div><div class="iv" style="font-size:16px">${eur(grandTotal(c))}</div></div>
+        ${rem>0?`<div class="info-tile" style="background:rgba(12,7,22,.4)"><div class="il">${ic(I.euro,14)} Votre rémunération</div><div class="iv" style="font-size:16px">${eur(rem)}</div></div>`:''}
       </div>
       ${c.adresse?`<div style="font-size:12.5px;color:var(--muted);margin-top:8px">${ic(I.pin,13)} ${esc(c.adresse)}</div>`:''}
       ${c.telephone?`<div style="font-size:12.5px;color:var(--muted);margin-top:6px">${ic(I.phone,13)} ${esc(c.telephone)}</div>`:''}
-      ${c.options&&c.options.length?`<div style="margin-top:12px"><div style="font-size:12px;font-weight:700;color:var(--violet);margin-bottom:5px">Options</div>
-        ${c.options.map(o=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span style="color:var(--muted)">${esc(o.nom)}</span><span>${eur(o.prix)}</span></div>`).join('')}</div>`:''}
       ${c.notes?`<div style="margin-top:12px;padding:11px 13px;background:rgba(177,92,255,.08);border:1px solid var(--border);border-radius:10px">
         <div style="font-size:11.5px;font-weight:700;color:var(--violet);margin-bottom:4px">Remarques</div>
         <div style="font-size:13px;color:var(--muted);white-space:pre-wrap;line-height:1.5">${esc(c.notes)}</div></div>`:''}
@@ -1312,6 +1390,7 @@ init();
 return {doAdminLogin,logout,go,toggleNav,
   openClient,closeModal,saveClient,deleteClient,onFormule,uploadDoc,downloadDoc,removeDoc,
   optAdd,optRemove,optName,optPrice,recalcTotal,
+  setPrestMode,asgAdd,asgRemove,asgName,asgHd,asgHf,asgMontant,
   openPrest,closePrest,savePrest,deletePrest,
   pipeSearch,listSearch,
   setCalView,calNav,calToday,openMonth,

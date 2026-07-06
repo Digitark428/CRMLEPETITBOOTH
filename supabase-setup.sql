@@ -87,7 +87,9 @@ returns jsonb language sql security definer stable
 set search_path = public
 as $$ select payload from public.clients where token = p_token limit 1 $$;
 
--- 8) LECTURE PUBLIQUE PAR LIEN — PRESTATAIRE (+ ses missions, sans documents)
+-- 8) LECTURE PUBLIQUE PAR LIEN — PRESTATAIRE
+--    Renvoie SES missions, avec SES horaires et SA rémunération.
+--    NE renvoie JAMAIS le prix client, les options, ni la formule.
 create or replace function public.prestataire_by_token(p_token text)
 returns jsonb language plpgsql security definer stable
 set search_path = public
@@ -96,10 +98,31 @@ declare pr jsonb; missions jsonb;
 begin
   select payload into pr from public.prestataires where token = p_token limit 1;
   if pr is null then return null; end if;
-  select coalesce(jsonb_agg((payload - 'documents') order by payload->>'datePrestation'), '[]'::jsonb)
-    into missions
-    from public.clients
-    where payload->>'prestataire' = pr->>'nom';
+  select coalesce(jsonb_agg(m order by m->>'datePrestation'), '[]'::jsonb) into missions
+  from (
+    select jsonb_build_object(
+      'prenom',        c.payload->>'prenom',
+      'nom',           c.payload->>'nom',
+      'telephone',     c.payload->>'telephone',
+      'typeEvenement', c.payload->>'typeEvenement',
+      'datePrestation',c.payload->>'datePrestation',
+      'adresse',       c.payload->>'adresse',
+      'lieu',          c.payload->>'lieu',
+      'notes',         c.payload->>'notes',
+      'status',        c.payload->>'status',
+      'heureDebut',    coalesce(nullif(asg.a->>'heureDebut',''), c.payload->>'heureDebut'),
+      'heureFin',      coalesce(nullif(asg.a->>'heureFin',''),   c.payload->>'heureFin'),
+      'montant',       coalesce(asg.a->>'montant','0')     -- rémunération versée à CE prestataire
+    ) as m
+    from public.clients c
+    left join lateral (
+      select el.value as a
+      from jsonb_array_elements(coalesce(c.payload->'assignments','[]'::jsonb)) el
+      where el.value->>'nom' = pr->>'nom'
+      limit 1
+    ) asg on true
+    where (c.payload->>'prestataire' = pr->>'nom') or (asg.a is not null)
+  ) sub;
   return jsonb_build_object('prestataire', pr, 'missions', missions);
 end $$;
 
